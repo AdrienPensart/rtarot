@@ -1,7 +1,6 @@
 use failure::Error;
 use std::fmt;
-use rand::Rng;
-use rand::thread_rng;
+use rand::{Rng, thread_rng};
 use rand::seq::SliceRandom;
 
 use crate::deck::*;
