@@ -6,7 +6,7 @@ pub fn read_index() -> usize {
     let mut input = String::new();
     loop {
         if io::stdin().read_line(&mut input).is_ok() {
-            input.parse::<usize>().unwrap();
+            return input.trim().parse::<usize>().unwrap();
         }
     }
 }

@@ -74,26 +74,24 @@ fn main() -> Result<(), Box<error::Error>> {
         for child in children {
             let _ = child.join();
         }
-        return Ok(());
-    }
-
-    let mut game = game::Game::new(players, random, auto);
-
-    loop {
-        game.distribute()?;
-        game.bidding()?;
-        if game.passed() {
-            println!("Everyone passed !");
-            continue
+    } else {
+        let mut game = game::Game::new(players, random, auto);
+        loop {
+            game.distribute()?;
+            game.bidding()?;
+            if game.passed() {
+                println!("Everyone passed !");
+                continue
+            }
+            game.discard()?;
+            while !game.finished() {
+                game.play()?;
+            }
+            game.count_points()?;
+            break
         }
-        game.discard()?;
-        while !game.finished() {
-            game.play()?;
-        }
-        game.count_points()?;
-        break
+        println!("GAME ENDED");
+        println!("{}", &game);
     }
-    println!("GAME ENDED");
-    println!("{}", &game);
     Ok(())
 }

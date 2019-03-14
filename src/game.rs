@@ -1,6 +1,9 @@
 use failure::Error;
 use std::fmt;
 use rand::Rng;
+use rand::thread_rng;
+use rand::seq::SliceRandom;
+
 use crate::deck::*;
 use crate::mode::*;
 use crate::contract::*;
@@ -74,12 +77,23 @@ impl Game
         assert!(self.players.iter().map(|ref p| p.total).sum::<f64>() == 0.0)
     }
     pub fn distribute(&mut self) -> Result<(), Error> {
-        self.deck.append(self.dog.give_all());
+        let mut decks : Vec<Deck> = Vec::new();
+        let dog = self.dog.give_all();
+        decks.push(dog);
         for p in self.players.iter_mut() {
-            self.deck.append(p.hand.give_all());
-            self.deck.append(p.owned.give_all());
+            let hand = p.hand.give_all();
+            decks.push(hand);
+            let deck = p.owned.give_all();
+            decks.push(deck);
             p.prepare();
         }
+
+        let mut rng = thread_rng();
+        decks.shuffle(&mut rng);
+        for mut d in decks {
+            self.deck.append(d.give_all());
+        }
+
         self.petit_au_bout = None;
         self.defense_cards = 0;
         self.attack_cards = 0;
