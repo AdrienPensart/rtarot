@@ -3,16 +3,10 @@ use std::io;
 
 #[allow(clippy::redundant_closure)]
 pub fn read_index() -> usize {
-    //let index: Result<usize, _> = try_read!();
-    //index
     let mut input = String::new();
     loop {
-        match io::stdin().read_line(&mut input) {
-            Ok(_) => {
-                let index: usize = input.parse().unwrap();
-                return index;
-            },
-            _ => ()
+        if io::stdin().read_line(&mut input).is_ok() {
+            input.parse::<usize>().unwrap();
         }
     }
 }

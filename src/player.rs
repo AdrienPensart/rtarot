@@ -279,7 +279,7 @@ impl Player
             if self.hand.count_tete(ColorValue::Queen) == 4 {
                 if self.hand.count_tete(ColorValue::Knight) == 4 {
                     if self.hand.count_tete(ColorValue::Jack) == 4 {
-                        debug!("Case too rare, taker has all kings, all queens and all knights");
+                        println!("Case too rare, taker has all kings, all queens and all knights");
                         Err(TarotErrorKind::InvalidCase)?
                     } else {
                         println!("You have 4 kings, 4 queens and 4 knights, you must choose a jack as partner");

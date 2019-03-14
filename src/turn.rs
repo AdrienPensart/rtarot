@@ -18,6 +18,9 @@ impl Turn {
     pub fn len(&self) -> usize {
         self.cards.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.cards.is_empty()
+    }
     pub fn called(&self) -> Option<&Card> {
         for c in &self.cards.0 {
             if c.is_fool() {

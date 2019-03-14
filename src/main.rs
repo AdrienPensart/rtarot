@@ -1,11 +1,10 @@
 extern crate strum;
 extern crate itertools;
 extern crate rand;
-extern crate rayon;
+extern crate num_cpus;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate strum_macros;
 #[macro_use] extern crate failure;
-#[macro_use] extern crate log;
 
 pub mod helpers;
 pub mod traits;
@@ -27,12 +26,11 @@ use std::error;
 use std::thread;
 use clap::{App, Arg};
 use strum::IntoEnumIterator;
-use rayon::current_num_threads;
 use crate::mode::Mode;
 
 fn main() -> Result<(), Box<error::Error>> {
     let players_choices = ["3", "4", "5"];
-    let default_concurrency = current_num_threads().to_string();
+    let default_concurrency = num_cpus::get().to_string();
     let matches = App::new("RTarot")
                      .version("1.0")
                      .about("Tarot simulation")
@@ -69,7 +67,8 @@ fn main() -> Result<(), Box<error::Error>> {
         let mut children = vec![];
         for _ in 0..concurrency {
             children.push(thread::spawn(move || {
-                Mode::iter().cycle().for_each(|m| helpers::test_game(m));
+                #[allow(clippy::infinite_iter)]
+                Mode::iter().cycle().for_each(helpers::test_game);
             }));
         }
         for child in children {
@@ -78,27 +77,19 @@ fn main() -> Result<(), Box<error::Error>> {
         return Ok(());
     }
 
-    debug!("players:{}", players as usize);
-    debug!("{:?}", &matches);
     let mut game = game::Game::new(players, random, auto);
 
     loop {
-        debug!("Distribute phase");
         game.distribute()?;
-        debug!("Auctions phase");
         game.bidding()?;
-        debug!("After auctions : {}", &game);
         if game.passed() {
             println!("Everyone passed !");
             continue
         }
-        debug!("Discard phase");
         game.discard()?;
-        debug!("Play phase");
         while !game.finished() {
             game.play()?;
         }
-        debug!("Count points phase");
         game.count_points()?;
         break
     }

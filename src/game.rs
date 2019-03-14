@@ -161,7 +161,7 @@ impl Game
                     contracts
                 },
                 _ => {
-                    debug!("A contract must be available for everyone!");
+                    println!("A contract must be available for everyone!");
                     Err(TarotErrorKind::InvalidCase)?
                 }
             };

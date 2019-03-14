@@ -5,11 +5,10 @@ authors = ["Adrien Pensart <adrien.pensart@corp.ovh.com>"]
 edition = "2018"
 
 [dependencies]
-rayon = "1.0"
 clap = "2.31"
 failure = "0.1.5"
 rand = "0.6.5"
 itertools = "0.8"
 strum = "0.14.0"
 strum_macros = "0.14.0"
-log = "0.4"
+num_cpus = "1.0"
