@@ -124,18 +124,11 @@ impl Game
                     for (i, c) in contracts.iter().enumerate() {
                         println!("\t{} : press {}", c, i);
                     }
-                    let contract_index: Result<usize, _> = read_index();
-                    match contract_index {
-                        Ok(index) => {
-                            if index < contracts.len() {
-                                break Some(contracts[index])
-                            } else {
-                                println!("Error, please retry");
-                            }
-                        },
-                        Err(_) => {
-                            println!("Error, please retry")
-                        }
+                    let contract_index = read_index();
+                    if contract_index < contracts.len() {
+                        break Some(contracts[contract_index])
+                    } else {
+                        println!("Error, please retry");
                     }
                 }
             };
@@ -285,15 +278,11 @@ impl Game
                 choices[rand::thread_rng().gen_range(0, choices.len())]
             } else {
                 loop {
-                    match read_index() {
-                        Ok(value) => if choices.contains(&value) {
-                            break value
-                        } else {
-                            println!("Bad input, please retry")
-                        },
-                        _ => {
-                            println!("Bad input, please retry")
-                        }
+                    let choice_index = read_index();
+                    if choices.contains(&choice_index) {
+                        break choice_index
+                    } else {
+                        println!("Error, please retry")
                     }
                 }
             };

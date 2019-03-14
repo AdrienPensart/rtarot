@@ -131,14 +131,11 @@ impl Player
                 for (i, s) in slams.iter().enumerate() {
                     println!("{} : press {}", s, i);
                 }
-                let slam_index: Result<usize, _> = read_index();
-                match slam_index {
-                    Ok(index) => {
-                        break slams[index]
-                    },
-                    Err(_) => {
-                        println!("Error, please retry")
-                    }
+                let slam_index = read_index();
+                if slam_index < slams.len() {
+                    break slams[slam_index]
+                } else {
+                    println!("Error, please retry")
                 }
             }
         };
@@ -169,14 +166,11 @@ impl Player
                         for (i, h) in handles.iter().enumerate() {
                             println!("{} (limit: {}) : press {}", h, h.limit(self.mode), i);
                         }
-                        let handle_index: Result<usize, _> = read_index();
-                        match handle_index {
-                            Ok(index) => {
-                                break handles[index].clone()
-                            },
-                            Err(_) => {
-                                println!("Error, please retry")
-                            }
+                        let handle_index = read_index();
+                        if handle_index < handles.len() {
+                            break handles[handle_index].clone()
+                        } else {
+                            println!("Error, please retry")
                         }
                     }
                 };
@@ -203,15 +197,11 @@ impl Player
                                     trumps.remove(index_to_remove);
                                     break
                                 } else {
-                                    let trump_index: Result<usize, _> = read_index();
-                                    match trump_index {
-                                        Ok(index) => {
-                                            trumps.remove(index);
-                                            break
-                                        },
-                                        Err(_) => {
-                                            println!("Error, please retry")
-                                        }
+                                    let trump_index = read_index();
+                                    if trump_index < trumps.len() {
+                                        trumps.remove(trump_index);
+                                    } else {
+                                        println!("Error, please retry")
                                     }
                                 }
                             }
@@ -324,18 +314,11 @@ impl Player
                 for (i, c) in colors.iter().enumerate() {
                     println!("\t{0: <3} : press {1}", c, i);
                 }
-                let color_index: Result<usize, _> = read_index();
-                match color_index {
-                    Ok(index) => {
-                        if index < colors.len() {
-                            break &colors[index]
-                        } else {
-                            println!("Error, please retry");
-                        }
-                    },
-                    Err(_) => {
-                        println!("Error, please retry")
-                    }
+                let color_index = read_index();
+                if color_index < colors.len() {
+                    break &colors[color_index]
+                } else {
+                    println!("Error, please retry")
                 }
             }
         };
@@ -355,18 +338,11 @@ impl Player
                     for &i in &discardables_indexes {
                         println!("\t{0: <4} : press {1}", self.hand.0[i], i);
                     }
-                    let index: Result<usize, _> = read_index();
-                    match index {
-                        Ok(index) => {
-                            if discardables_indexes.contains(&index) {
-                                break index
-                            } else {
-                                println!("Error, please retry");
-                            }
-                        },
-                        Err(_) => {
-                            println!("Error, please retry")
-                        }
+                    let discard_index = read_index();
+                    if discardables_indexes.contains(&discard_index) {
+                        break discard_index
+                    } else {
+                        println!("Error, please retry")
                     }
                 }
             };

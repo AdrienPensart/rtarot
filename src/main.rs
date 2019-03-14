@@ -1,12 +1,10 @@
 extern crate strum;
 extern crate itertools;
 extern crate rand;
-extern crate ctrlc;
 extern crate rayon;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate strum_macros;
 #[macro_use] extern crate failure;
-#[macro_use] extern crate text_io;
 #[macro_use] extern crate log;
 
 pub mod helpers;
@@ -29,20 +27,10 @@ use std::error;
 use std::thread;
 use clap::{App, Arg};
 use strum::IntoEnumIterator;
-//use rayon::prelude::*;
 use rayon::current_num_threads;
 use crate::mode::Mode;
 
 fn main() -> Result<(), Box<error::Error>> {
-    //use std::sync::atomic::{AtomicBool, Ordering};
-    //use std::sync::Arc;
-    //let running = Arc::new(AtomicBool::new(true));
-    //let r = running.clone();
-    //ctrlc::set_handler(move || {
-    //    r.store(false, Ordering::SeqCst);
-    //}).expect("Error setting Ctrl-C handler");
-    //while running.load(Ordering::SeqCst) {
-
     let players_choices = ["3", "4", "5"];
     let default_concurrency = current_num_threads().to_string();
     let matches = App::new("RTarot")

@@ -1,9 +1,20 @@
 use crate::mode::Mode;
+use std::io;
 
 #[allow(clippy::redundant_closure)]
-pub fn read_index() -> Result<usize, text_io::Error> {
-    let index: Result<usize, _> = try_read!();
-    index
+pub fn read_index() -> usize {
+    //let index: Result<usize, _> = try_read!();
+    //index
+    let mut input = String::new();
+    loop {
+        match io::stdin().read_line(&mut input) {
+            Ok(_) => {
+                let index: usize = input.parse().unwrap();
+                return index;
+            },
+            _ => ()
+        }
+    }
 }
 
 pub fn wait_input() {
