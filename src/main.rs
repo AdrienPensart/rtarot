@@ -1,3 +1,4 @@
+#![feature(tool_lints)]
 extern crate strum;
 extern crate itertools;
 extern crate rand;
