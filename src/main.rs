@@ -1,7 +1,7 @@
 extern crate strum;
-extern crate itertools;
 extern crate rand;
 extern crate num_cpus;
+extern crate itertools;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate strum_macros;
 #[macro_use] extern crate failure;

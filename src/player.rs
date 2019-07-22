@@ -1,6 +1,8 @@
 use std::fmt;
 use rand::Rng;
 use failure::Error;
+use strum::IntoEnumIterator;
+use crate::itertools::Itertools;
 
 use crate::traits::*;
 use crate::contract::*;
@@ -271,58 +273,44 @@ impl Player
             Mode::Five => self.hand.len() == 15,
         }
     }
-    pub fn call(&mut self) -> Result<Option<Card>, Error> {
+    pub fn call(&self) -> Result<Card, Error> {
         if self.mode != Mode::Five {
             Err(TarotErrorKind::InvalidMode)?;
         }
-        let value = if self.hand.count_tete(ColorValue::King) == 4 {
+        let mut value_callable : Vec<ColorValue> = Vec::new();
+        value_callable.push(ColorValue::King);
+        if self.hand.count_tete(ColorValue::King) == 4 {
+            value_callable.push(ColorValue::Queen);
             if self.hand.count_tete(ColorValue::Queen) == 4 {
+                value_callable.push(ColorValue::Knight);
                 if self.hand.count_tete(ColorValue::Knight) == 4 {
+                    value_callable.push(ColorValue::Jack);
                     if self.hand.count_tete(ColorValue::Jack) == 4 {
                         println!("Case too rare, taker has all kings, all queens and all knights");
                         Err(TarotErrorKind::InvalidCase)?
-                    } else {
-                        println!("You have 4 kings, 4 queens and 4 knights, you must choose a jack as partner");
-                        ColorValue::Jack
                     }
-                } else {
-                    println!("You have 4 kings and 4 queens, you must choose a knight as partner");
-                    ColorValue::Knight
                 }
-            } else {
-                println!("You have 4 kings, you must choose a queen as partner");
-                ColorValue::Queen
             }
-        } else {
-            println!("You must choose a king as partner");
-            ColorValue::King
-        };
-        let colors = vec![
-            Color::Spade,
-            Color::Heart,
-            Color::Diamond,
-            Color::Club,
-        ];
-
-        let color = if self.random {
-            &colors[rand::thread_rng().gen_range(0, colors.len())]
+        }
+        let choices : Vec<Card> = Color::iter().cartesian_product(value_callable.iter()).map(|(c, cv)| Card::Color(c, *cv)).collect();
+        if self.random {
+            Ok(choices[rand::thread_rng().gen_range(0, choices.len())])
         } else {
             loop {
                 println!("Hand of taker {}", &self.hand);
-                println!("Taker must choose a color to call his partner :");
+                println!("Taker must choose a card to call his partner :");
                 println!("Possibilities:");
-                for (i, c) in colors.iter().enumerate() {
+                for (i, c) in choices.iter().enumerate() {
                     println!("\t{0: <3} : press {1}", c, i);
                 }
-                let color_index = read_index();
-                if color_index < colors.len() {
-                    break &colors[color_index]
+                let choice_index = read_index();
+                if choice_index < choices.len() {
+                    break Ok(choices[choice_index])
                 } else {
                     println!("Error, please retry")
                 }
             }
-        };
-        Ok(Some(Card::Color(*color, value)))
+        }
     }
     pub fn discard (&mut self, discard: usize) {
         println!("{}", &self);
@@ -470,14 +458,15 @@ fn player_tests() {
     println!("looser points: {}", looser.contract_points().unwrap());
     assert!((looser.contract_points().unwrap() - -81.0).abs() < EPSILON);
 
-    let winner = Player {
+    let mut winner = Player {
         name: "Player looser".to_string(),
         contract: Some(Contract::GardeContre),
-        callee: Some(Card::Color(Color::Club, ColorValue::King)),
         owned: Deck::build_deck(),
         mode: Mode::Five,
+        random: true,
         ..Player::default()
     };
+    winner.callee = Some(winner.call().unwrap());
     let turn = Turn::default();
     println!("{}", &winner.hand);
     let choices = &winner.choices(&turn);
