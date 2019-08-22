@@ -12,9 +12,9 @@ pub enum Mode {
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Mode::Three => write!(f, "{} players, 1 vs 2", Mode::Three as usize),
-            Mode::Four  => write!(f, "{} players, 1 vs 3", Mode::Four as usize),
-            Mode::Five  => write!(f, "{} players, 2 vs 3", Mode::Five as usize),
+            Self::Three => write!(f, "{} players, 1 vs 2", Mode::Three as usize),
+            Self::Four  => write!(f, "{} players, 1 vs 3", Mode::Four as usize),
+            Self::Five  => write!(f, "{} players, 2 vs 3", Mode::Five as usize),
         }
     }
 }
@@ -23,9 +23,9 @@ impl FromStr for Mode {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Mode, TarotErrorKind> {
         match s {
-            "3" => Ok(Mode::Three),
-            "4" => Ok(Mode::Four),
-            "5" => Ok(Mode::Five),
+            "3" => Ok(Self::Three),
+            "4" => Ok(Self::Four),
+            "5" => Ok(Self::Five),
             _ => Err(TarotErrorKind::InvalidPlayers),
         }
     }
@@ -34,21 +34,21 @@ impl FromStr for Mode {
 impl Mode {
     pub fn dog_size(self) -> usize {
         match self {
-            Mode::Five => 3,
+            Self::Five => 3,
             _ => 6
         }
     }
     pub fn cards_per_turn(self) -> usize {
         match self {
-            Mode::Three=> 4,
+            Self::Three=> 4,
             _ => 3
         }
     }
     pub fn cards_per_player(self) -> usize {
         match self {
-            Mode::Three => 24,
-            Mode::Four  => 18,
-            Mode::Five  => 15,
+            Self::Three => 24,
+            Self::Four  => 18,
+            Self::Five  => 15,
         }
     }
 }

@@ -14,11 +14,11 @@ pub enum Contract {
 impl fmt::Display for Contract {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Contract::Pass         => write!(f, "Passe. (x0)"),
-            Contract::Petite       => write!(f, "Petite (x1)"),
-            Contract::Garde        => write!(f, "Garde (x2)"),
-            Contract::GardeSans    => write!(f, "Garde Sans (x4)"),
-            Contract::GardeContre  => write!(f, "Garde Contre (x6)"),
+            Self::Pass         => write!(f, "Passe. (x0)"),
+            Self::Petite       => write!(f, "Petite (x1)"),
+            Self::Garde        => write!(f, "Garde (x2)"),
+            Self::GardeSans    => write!(f, "Garde Sans (x4)"),
+            Self::GardeContre  => write!(f, "Garde Contre (x6)"),
         }
     }
 }
@@ -27,11 +27,11 @@ impl FromStr for Contract {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Contract, TarotErrorKind> {
         match s {
-            "0" => Ok(Contract::Pass),
-            "1" => Ok(Contract::Petite),
-            "2" => Ok(Contract::Garde),
-            "4" => Ok(Contract::GardeSans),
-            "6" => Ok(Contract::GardeContre),
+            "0" => Ok(Self::Pass),
+            "1" => Ok(Self::Petite),
+            "2" => Ok(Self::Garde),
+            "4" => Ok(Self::GardeSans),
+            "6" => Ok(Self::GardeContre),
             _ => Err(TarotErrorKind::InvalidContract),
         }
     }

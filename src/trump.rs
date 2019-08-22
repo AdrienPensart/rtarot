@@ -32,7 +32,7 @@ pub enum TrumpValue {
 impl fmt::Display for TrumpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TrumpValue::Fool   => write!(f, "🃏"),
+            Self::Fool   => write!(f, "🃏"),
             _ => write!(f, "{0} : {1: <2}", TRUMP_COLOR, *self as usize)
         }
     }
@@ -41,7 +41,7 @@ impl fmt::Display for TrumpValue {
 impl TrumpValue {
     pub fn is_oudler(self) -> bool {
         match self {
-            TrumpValue::Fool | TrumpValue::Petit | TrumpValue::_21  => true,
+            Self::Fool | Self::Petit | Self::_21  => true,
             _  => false
         }
     }

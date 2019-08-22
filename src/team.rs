@@ -8,8 +8,8 @@ pub enum Team {
 impl fmt::Display for Team {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self {
-            Team::Defense => write!(f, "defense"),
-            Team::Attack  => write!(f, "attack"),
+            Self::Defense => write!(f, "defense"),
+            Self::Attack  => write!(f, "attack"),
         }
     }
 }

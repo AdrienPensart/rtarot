@@ -14,10 +14,10 @@ pub enum Color {
 impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Color::Spade   => write!(f, "♠"),
-            Color::Diamond => write!(f, "♦"),
-            Color::Club  => write!(f, "♣"),
-            Color::Heart   => write!(f, "♥"),
+            Self::Spade   => write!(f, "♠"),
+            Self::Diamond => write!(f, "♦"),
+            Self::Club  => write!(f, "♣"),
+            Self::Heart   => write!(f, "♥"),
         }
     }
 }
@@ -26,10 +26,10 @@ impl FromStr for Color {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Color, TarotErrorKind> {
         match s {
-            "1" => Ok(Color::Heart),
-            "2" => Ok(Color::Spade),
-            "3" => Ok(Color::Diamond),
-            "4" => Ok(Color::Club),
+            "1" => Ok(Self::Heart),
+            "2" => Ok(Self::Spade),
+            "3" => Ok(Self::Diamond),
+            "4" => Ok(Self::Club),
             _ => Err(TarotErrorKind::InvalidColor),
         }
     }
@@ -56,10 +56,10 @@ pub enum ColorValue {
 impl fmt::Display for ColorValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ColorValue::Jack => write!(f, "V"),
-            ColorValue::Knight => write!(f, "C"),
-            ColorValue::Queen => write!(f, "Q"),
-            ColorValue::King => write!(f, "K"),
+            Self::Jack => write!(f, "V"),
+            Self::Knight => write!(f, "C"),
+            Self::Queen => write!(f, "Q"),
+            Self::King => write!(f, "K"),
             _ => write!(f, "{}", *self as usize),
         }
     }
@@ -68,21 +68,21 @@ impl fmt::Display for ColorValue {
 impl Discardable for ColorValue {
     fn discardable(&self) -> bool {
         // RULE: cant discard kings
-        self != &ColorValue::King
+        self != &Self::King
     }
     fn discardable_forced(&self) -> bool {
         // RULE: cant discard kings
-        self != &ColorValue::King
+        self != &Self::King
     }
 }
 
 impl Points for ColorValue {
     fn points(&self) -> f64 {
         match self {
-            ColorValue::Jack => 1.5,
-            ColorValue::Knight => 2.5,
-            ColorValue::Queen => 3.5,
-            ColorValue::King => 4.5,
+            Self::Jack => 1.5,
+            Self::Knight => 2.5,
+            Self::Queen => 3.5,
+            Self::King => 4.5,
             _  => 0.5
         }
     }

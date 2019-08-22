@@ -12,8 +12,8 @@ pub enum Card {
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Card::Trump(t) => write!(f, "{}", t),
-            Card::Color(c, v) => write!(f, "{} : {}", c, v)
+            Self::Trump(t) => write!(f, "{}", t),
+            Self::Color(c, v) => write!(f, "{} : {}", c, v)
         }
     }
 }
@@ -21,8 +21,8 @@ impl fmt::Display for Card {
 impl Points for Card {
     fn points(&self) -> f64 {
         match self {
-            Card::Trump(c) => c.points(),
-            Card::Color(_, v) => v.points()
+            Self::Trump(c) => c.points(),
+            Self::Color(_, v) => v.points()
         }
     }
 }
@@ -30,14 +30,14 @@ impl Points for Card {
 impl Discardable for Card {
     fn discardable(&self) -> bool {
         match self {
-            Card::Trump(t) => t.discardable(),
-            Card::Color(_, v) => v.discardable()
+            Self::Trump(t) => t.discardable(),
+            Self::Color(_, v) => v.discardable()
         }
     }
     fn discardable_forced(&self) -> bool {
         match self {
-            Card::Trump(t) => t.discardable_forced(),
-            Card::Color(_, v) => v.discardable_forced()
+            Self::Trump(t) => t.discardable_forced(),
+            Self::Color(_, v) => v.discardable_forced()
         }
     }
 }
@@ -45,28 +45,28 @@ impl Discardable for Card {
 impl Card {
     pub fn is_fool(self) -> bool {
         match self {
-            Card::Trump(v) => v == TrumpValue::Fool,
+            Self::Trump(v) => v == TrumpValue::Fool,
             _ => false
         }
     }
     pub fn is_trump(self) -> bool {
         match self {
-            Card::Trump(_) => true,
+            Self::Trump(_) => true,
             _ => false
         }
     }
     pub fn is_oudler(self) -> bool {
         match self {
-            Card::Trump(c) => c.is_oudler(),
+            Self::Trump(c) => c.is_oudler(),
             _ => false
         }
     }
     pub fn master(self, arg: Card) -> bool {
         match (&self, &arg) {
-            (Card::Trump(c), Card::Color(_, _)) => c != &TrumpValue::Fool,
-            (Card::Color(_, _), Card::Trump(c)) => c == &TrumpValue::Fool,
-            (Card::Color(c1, v1), Card::Color(c2, v2)) => c1 != c2 || v1 > v2,
-            (Card::Trump(v1), Card::Trump(v2)) => v1 > v2,
+            (Self::Trump(c), Self::Color(_, _)) => c != &TrumpValue::Fool,
+            (Self::Color(_, _), Self::Trump(c)) => c == &TrumpValue::Fool,
+            (Self::Color(c1, v1), Self::Color(c2, v2)) => c1 != c2 || v1 > v2,
+            (Self::Trump(v1), Self::Trump(v2)) => v1 > v2,
         }
     }
 }
