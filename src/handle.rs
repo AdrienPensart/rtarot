@@ -25,25 +25,25 @@ impl Handle {
         match mode {
             Mode::Three => {
                 match count {
-                    0 ... 12 => None,
-                    13 ... 14 => Some(Handle::Simple),
-                    15 ... 17 => Some(Handle::Double),
+                    0 ..= 12 => None,
+                    13 ..= 14 => Some(Handle::Simple),
+                    15 ..= 17 => Some(Handle::Double),
                     _ => Some(Handle::Triple)
                 }
             },
             Mode::Four => {
                 match count {
-                    0 ... 9 => None,
-                    10 ... 12 => Some(Handle::Simple),
-                    13 ... 14 => Some(Handle::Double),
+                    0 ..= 9 => None,
+                    10 ..= 12 => Some(Handle::Simple),
+                    13 ..= 14 => Some(Handle::Double),
                     _ => Some(Handle::Triple)
                 }
             },
             Mode::Five => {
                 match count {
-                    0 ... 7 => None,
-                    8 ... 9 => Some(Handle::Simple),
-                    10 ... 12 => Some(Handle::Double),
+                    0 ..= 7 => None,
+                    8 ..= 9 => Some(Handle::Simple),
+                    10 ..= 12 => Some(Handle::Double),
                     _ => Some(Handle::Triple)
                 }
             }

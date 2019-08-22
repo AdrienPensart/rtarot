@@ -28,7 +28,7 @@ use clap::{App, Arg};
 use strum::IntoEnumIterator;
 use crate::mode::Mode;
 
-fn main() -> Result<(), Box<error::Error>> {
+fn main() -> Result<(), Box<dyn error::Error>> {
     let players_choices = ["3", "4", "5"];
     let default_concurrency = num_cpus::get().to_string();
     let matches = App::new("RTarot")
