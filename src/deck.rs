@@ -86,7 +86,7 @@ impl Deck {
             1 => Ok(51.0),
             2 => Ok(41.0),
             3 => Ok(36.0),
-            _ => Err(TarotErrorKind::InvalidCase)?,
+            _ => Err(TarotErrorKind::InvalidCase.into()),
         }
     }
     pub fn len(&self) -> usize {

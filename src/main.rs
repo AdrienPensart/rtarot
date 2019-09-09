@@ -2,9 +2,9 @@ extern crate strum;
 extern crate rand;
 extern crate num_cpus;
 extern crate itertools;
-#[macro_use] extern crate clap;
 #[macro_use] extern crate strum_macros;
 #[macro_use] extern crate failure;
+#[macro_use] extern crate lazy_static;
 
 pub mod helpers;
 pub mod traits;
@@ -24,48 +24,43 @@ pub mod game;
 
 use std::error;
 use std::thread;
-use clap::{App, Arg};
+use structopt::StructOpt;
 use strum::IntoEnumIterator;
 use crate::mode::Mode;
 
+lazy_static! {
+    static ref DEFAULT_CONCURRENCY: String = num_cpus::get().to_string();
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "RTarot", about = "Tarot simulation", version = "1.0", author = "Adrien P. <crunchengine@gmail.com>")]
+struct Opt {
+    /// Players mode
+    #[structopt(short = "p", long = "players")]
+    players: mode::Mode,
+
+    /// Random playing mode
+    #[structopt(short = "r", long = "random")]
+    random: bool,
+
+    /// Auto playing mode when possible
+    #[structopt(short = "a", long = "auto")]
+    auto: bool,
+
+    /// Test mode
+    #[structopt(short = "t", long = "test")]
+    test: bool,
+
+    /// Concurrency in test mode
+    #[structopt(short, default_value = DEFAULT_CONCURRENCY.as_str())]
+    concurrency: usize
+}
+
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let players_choices = ["3", "4", "5"];
-    let default_concurrency = num_cpus::get().to_string();
-    let matches = App::new("RTarot")
-                     .version("1.0")
-                     .about("Tarot simulation")
-                     .author("Adrien P. <crunchengine@gmail.com>")
-                     .arg(Arg::with_name("players")
-                         .short("p")
-                         .takes_value(true)
-                         .required(true)
-                         .help("Number of players")
-                         .possible_values(&players_choices)
-                         .default_value("4")
-                     ).arg(Arg::with_name("random")
-                          .short("r")
-                          .help("Random playing mode")
-                     ).arg(Arg::with_name("auto")
-                          .short("a")
-                          .help("Auto playing mode when possible")
-                     ).arg(Arg::with_name("test")
-                          .short("t")
-                          .help("Test mode")
-                     ).arg(Arg::with_name("concurrency")
-                          .short("c")
-                          .takes_value(true)
-                          .required(true)
-                          .help("Concurrency in test mode")
-                          .default_value(default_concurrency.as_ref())
-                     ).get_matches();
-    let players = value_t!(matches.value_of("players"), mode::Mode)?;
-    let concurrency = value_t!(matches.value_of("concurrency"), u32)?;
-    let random = matches.is_present("random");
-    let auto = matches.is_present("auto");
-    let test = matches.is_present("test");
-    if test {
+    let opt = Opt::from_args();
+    if opt.test {
         let mut children = vec![];
-        for _ in 0..concurrency {
+        for _ in 0..opt.concurrency {
             children.push(thread::spawn(move || {
                 #[allow(clippy::infinite_iter)]
                 Mode::iter().cycle().for_each(helpers::test_game);
@@ -75,7 +70,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let _ = child.join();
         }
     } else {
-        let mut game = game::Game::new(players, random, auto);
+        let mut game = game::Game::new(opt.players, opt.random, opt.auto);
         loop {
             game.distribute()?;
             game.bidding()?;

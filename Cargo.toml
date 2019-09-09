@@ -6,10 +6,11 @@ authors = ["Adrien Pensart <adrien.pensart@corp.ovh.com>"]
 edition = "2018"
 
 [dependencies]
-clap = "2.31"
+lazy_static = "1.4.0"
+structopt = "0.3"
 failure = "0.1.5"
-rand = "0.6.5"
+rand = "0.7"
 itertools = "0.8"
-strum = "0.14.0"
-strum_macros = "0.14.0"
+strum = "0.15"
+strum_macros = "0.15"
 num_cpus = "1.0"

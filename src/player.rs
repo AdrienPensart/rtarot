@@ -60,7 +60,7 @@ pub fn default_name(index: usize) -> Result<String, Error> {
         2 => Ok("South".to_string()),
         3 => Ok("West".to_string()),
         4 => Ok("Compass".to_string()),
-        _ => Err(TarotErrorKind::InvalidCase)?
+        _ => Err(TarotErrorKind::InvalidCase.into())
     }
 }
 
@@ -253,7 +253,7 @@ impl Player
         println!("Contract difference: {}", points - contract_points);
 
         match self.contract {
-            Some(Contract::Pass) | None => Err(TarotErrorKind::NoContract)?,
+            Some(Contract::Pass) | None => Err(TarotErrorKind::NoContract.into()),
             Some(contract) => {
                 println!("Taker contract: {}", &contract);
                 if points >= contract_points {
@@ -275,7 +275,7 @@ impl Player
     }
     pub fn call(&self) -> Result<Card, Error> {
         if self.mode != Mode::Five {
-            Err(TarotErrorKind::InvalidMode)?;
+            return Err(TarotErrorKind::InvalidMode.into());
         }
         let mut value_callable : Vec<ColorValue> = Vec::new();
         value_callable.push(ColorValue::King);
@@ -287,7 +287,7 @@ impl Player
                     value_callable.push(ColorValue::Jack);
                     if self.hand.count_tete(ColorValue::Jack) == 4 {
                         println!("Case too rare, taker has all kings, all queens and all knights");
-                        Err(TarotErrorKind::InvalidCase)?
+                        return Err(TarotErrorKind::InvalidCase.into())
                     }
                 }
             }
