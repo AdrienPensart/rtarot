@@ -36,7 +36,7 @@ lazy_static! {
 #[structopt(name = "RTarot", about = "Tarot simulation", version = "1.0", author = "Adrien P. <crunchengine@gmail.com>")]
 struct Opt {
     /// Players mode
-    #[structopt(short = "p", long = "players")]
+    #[structopt(default_value = "4", possible_values = &["3", "4", "5"])]
     players: mode::Mode,
 
     /// Random playing mode
@@ -51,7 +51,7 @@ struct Opt {
     #[structopt(short = "t", long = "test")]
     test: bool,
 
-    /// Concurrency in test mode
+    /// Concurrency in test mode, default is number of cpu on this machine
     #[structopt(short, default_value = DEFAULT_CONCURRENCY.as_str())]
     concurrency: usize
 }
