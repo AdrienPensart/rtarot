@@ -12,7 +12,7 @@ pub enum Card {
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Trump(t) => write!(f, "{}", t),
+            Self::Trump(v) => write!(f, "{}", v),
             Self::Color(c, v) => write!(f, "{} : {}", c, v)
         }
     }
@@ -21,8 +21,17 @@ impl fmt::Display for Card {
 impl Points for Card {
     fn points(&self) -> f64 {
         match self {
-            Self::Trump(c) => c.points(),
+            Self::Trump(v) => v.points(),
             Self::Color(_, v) => v.points()
+        }
+    }
+}
+
+impl Power for Card {
+    fn power(&self) -> usize {
+        match self {
+            Self::Trump(v) => *v as usize + ColorValue::King as usize,
+            Self::Color(_, v) => *v as usize,
         }
     }
 }
