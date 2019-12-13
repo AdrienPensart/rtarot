@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 use crate::errors::TarotErrorKind;
 
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, EnumIter)]
 pub enum Contract {
     Pass = 0,
     Petite = 1,

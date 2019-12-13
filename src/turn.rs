@@ -52,7 +52,3 @@ impl fmt::Display for Turn {
         Ok(())
     }
 }
-
-#[test]
-fn turn_tests() {
-}

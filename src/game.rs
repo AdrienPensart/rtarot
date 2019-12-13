@@ -2,7 +2,7 @@ use failure::Error;
 use std::fmt;
 use rand::{Rng, thread_rng};
 use rand::seq::SliceRandom;
-
+use strum::IntoEnumIterator;
 use crate::deck::*;
 use crate::mode::*;
 use crate::contract::*;
@@ -112,14 +112,7 @@ impl Game
         Ok(())
     }
     pub fn bidding(&mut self) -> Result<(), Error> {
-        let mut contracts = vec![
-            Contract::Pass,
-            Contract::Petite,
-            Contract::Garde,
-            Contract::GardeSans,
-            Contract::GardeContre,
-        ];
-
+        let mut contracts: Vec<Contract> = Contract::iter().collect();
         let mut slam_index : Option<usize> = None;
         for (i, p) in self.players.iter_mut().enumerate() {
             if self.auto && contracts.len() == 1 {
@@ -146,32 +139,12 @@ impl Game
                 }
             };
 
+
             contracts = match p.contract {
-                Some(Contract::Petite) => {
-                    println!("Petite");
-                    p.contract = Some(Contract::Petite);
-                    vec![Contract::Pass, Contract::Garde, Contract::GardeSans, Contract::GardeContre]
-                },
-                Some(Contract::Garde) => {
-                    println!("Garde");
-                    p.contract = Some(Contract::Garde);
-                    vec![Contract::Pass, Contract::GardeSans, Contract::GardeContre]
-                },
-                Some(Contract::GardeSans) => {
-                    println!("Garde sans!");
-                    p.contract = Some(Contract::GardeSans);
-                    vec![Contract::Pass, Contract::GardeContre]
-                },
-                Some(Contract::GardeContre) =>
-                {
-                    println!("Garde contre : others must pass");
-                    p.contract = Some(Contract::GardeContre);
-                    vec![Contract::Pass]
-                },
-                Some(Contract::Pass) => {
-                    println!("Pass");
-                    p.contract = Some(Contract::Pass);
-                    contracts
+                Some(contract) => {
+                    println!("{}", contract);
+                    p.contract = Some(contract);
+                    Contract::iter().filter(|other_contract| other_contract == &Contract::Pass || *other_contract as usize > contract as usize).collect()
                 },
                 _ => {
                     println!("A contract must be available for everyone!");
