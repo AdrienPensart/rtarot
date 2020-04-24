@@ -6,6 +6,7 @@ authors = ["Adrien Pensart <crunchengine@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+log = "0.4"
 lazy_static = "1.4.0"
 structopt = "0.3"
 failure = "0.1.5"

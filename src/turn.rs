@@ -5,6 +5,7 @@ use crate::card::Card;
 #[derive(Debug, Default)]
 pub struct Turn {
     pub master_index: Option<usize>,
+    pub fool_played: bool,
     cards: Deck,
 }
 

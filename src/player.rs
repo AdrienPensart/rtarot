@@ -70,7 +70,7 @@ impl fmt::Display for Player {
             Some(contract) => {
                 write!(f, "{}, total: {}, contract: {}, slam: {}", &self.name, &self.total, &contract, &self.slam)?;
             },
-            _ => {
+            None => {
                 write!(f, "{}, total: {}, no contract yet, slam: {}", self.name, &self.total, &self.slam)?;
             },
         }
@@ -340,8 +340,9 @@ impl Player
         for c in self.owned.trumps() {
             println!("This trump was discarded: {}", &c);
         }
+        self.hand.sort();
     }
-    pub fn choices(&self, turn: &Turn) -> Vec<usize> {
+    pub fn choices(&self, turn: &Turn) -> Result<Vec<usize>, Error> {
         let mut and_fool : Option<usize> = None;
         let mut trumps = Vec::new();
         let mut trumps_less = Vec::new();
@@ -433,12 +434,39 @@ impl Player
                     other_colors
                 }
             },
-            _ => (0..self.hand.len()).collect()
+            (Some(Card::Color(_, _)), None) => {
+                println!("There cannot be a called color and no master card, impossible case!");
+                return Err(TarotErrorKind::InvalidCase.into())
+            }
+            (Some(Card::Trump(_)), Some(Card::Color(_, _))) => {
+                println!("There cannot be a called trump and a master color, impossible case!");
+                return Err(TarotErrorKind::InvalidCase.into())
+            }
+            (Some(Card::Trump(_)), None) => {
+                println!("There cannot be a called trump and not master, impossible case!");
+                return Err(TarotErrorKind::InvalidCase.into())
+            }
+            (None, Some(_)) => {
+                println!("There cannot be no called color and a master, impossible case!");
+                return Err(TarotErrorKind::InvalidCase.into())
+            },
+            // RULE: first player can put the callee but no any other card in the same color
+            (None, None) => match (self.is_first_turn(), self.mode) {
+                (true, Mode::Five) => {
+                    self.hand.0.iter().enumerate().filter(|(_, &card)| {
+                        match (card, self.callee) {
+                            (Card::Color(color, value), Some(Card::Color(callee_color, callee_value))) => callee_color != color || value == callee_value,
+                            _ => true
+                        }
+                    }).map(|(i, _)| i).collect()
+                },
+                _ => (0..self.hand.len()).collect()
+            },
         };
         if let Some(fool_index) = and_fool {
             compatibles.push(fool_index);
         }
-        compatibles
+        Ok(compatibles)
     }
 }
 
@@ -469,7 +497,7 @@ fn player_tests() {
     winner.callee = Some(winner.call().unwrap());
     let turn = Turn::default();
     println!("{}", &winner.hand);
-    let choices = &winner.choices(&turn);
+    let choices = &winner.choices(&turn).unwrap();
     println!("Choices :");
     for &i in choices {
         println!("\t{0: <2} : {1}", &i, &winner.hand.0[i]);

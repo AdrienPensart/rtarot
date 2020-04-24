@@ -125,15 +125,15 @@ impl Deck {
         Deck(self.0.drain(..).collect())
     }
     pub fn give_low(&mut self) -> Option<Card> {
-        let low_index = &self.0.iter().enumerate().filter_map(|(i, c)| if c.points() - 0.5 < EPSILON { Some(i) } else { None }).nth(0);
+        let low_index = &self.0.iter().enumerate().filter_map(|(i, c)| if c.points() - 0.5 < EPSILON { Some(i) } else { None }).next();
         if let Some(index) = low_index {
             Some(self.0.remove(index.to_owned()))
         } else {
             None
         }
     }
-    pub fn append(&mut self, deck: Deck) {
-        self.0.append(&mut deck.0.clone());
+    pub fn append(&mut self, deck: &mut Deck) {
+        self.0.append(&mut deck.0);
     }
     pub fn push(&mut self, card: Card){
         self.0.push(card);

@@ -73,7 +73,9 @@ impl Game
         game
     }
     fn is_consistent(&self) {
-        assert!(self.players.iter().map(|ref p| p.total).sum::<f64>() == 0.0)
+        let sum = self.players.iter().map(|ref p| p.total).sum::<f64>();
+        debug!("Current points sum : {}", sum);
+        assert!(sum == 0.0)
     }
     pub fn distribute(&mut self) -> Result<(), Error> {
         let mut decks : Vec<Deck> = Vec::new();
@@ -90,7 +92,7 @@ impl Game
         let mut rng = thread_rng();
         decks.shuffle(&mut rng);
         for mut d in decks {
-            self.deck.append(d.give_all());
+            self.deck.append(&mut d.give_all());
         }
 
         self.petit_au_bout = None;
@@ -100,7 +102,7 @@ impl Game
         self.dog = self.deck.give(self.mode.dog_size());
         self.dog.sort();
         for p in self.players.iter_mut() {
-            p.hand.append(self.deck.give(self.mode.cards_per_player()))
+            p.hand.append(&mut self.deck.give(self.mode.cards_per_player()))
         }
         for p in self.players.iter_mut() {
             if p.hand.petit_sec() {
@@ -138,13 +140,10 @@ impl Game
                     }
                 }
             };
-
-
             contracts = match p.contract {
                 Some(contract) => {
-                    println!("{}", contract);
-                    p.contract = Some(contract);
-                    Contract::iter().filter(|other_contract| other_contract == &Contract::Pass || *other_contract as usize > contract as usize).collect()
+                    println!("Player {} has chosen contract {}", p.name, contract);
+                    contracts.into_iter().filter(|other_contract| other_contract == &Contract::Pass || *other_contract as usize > contract as usize).collect()
                 },
                 _ => {
                     println!("A contract must be available for everyone!");
@@ -173,16 +172,18 @@ impl Game
         }
 
         let mut callee: Option<Card> = None;
-        let mut contract: Option<Contract> = None;
-        if let Some(taker) = self.players.iter_mut().max_by(|c1, c2| c1.contract.unwrap().cmp(&c2.contract.unwrap())) {
-            println!("{} has taken", &taker);
-            contract = taker.contract;
+        let contract: Option<Contract> = if let Some(taker) = self.players.iter_mut().max_by(|c1, c2| c1.contract.unwrap().cmp(&c2.contract.unwrap())) {
+            println!("{} has taken", taker);
             if let Mode::Five = self.mode {
                 callee = Some(taker.call()?);
             }
-        }
+            taker.contract
+        } else {
+            return Err(TarotErrorKind::NoTaker.into());
+        };
 
         for p in &mut self.players {
+            println!("Player before : {}", p);
             p.callee = callee;
             p.team = Some(Team::Defense);
             p.role = Some(Role::Defenser);
@@ -196,6 +197,7 @@ impl Game
                 }
             }
             p.contract = contract;
+            println!("Player after : {}", p);
         }
 
         let team_partitioner = |p: &'_ &mut Player| -> bool {
@@ -214,19 +216,20 @@ impl Game
             match taker.contract {
                 Some(Contract::Pass) => continue,
                 Some(Contract::GardeSans) => {
-                    taker.owned.append(self.dog.give_all());
+                    taker.owned.append(&mut self.dog.give_all());
                     return Ok(())
                 }
                 Some(Contract::GardeContre) => {
                     for o in others {
-                        o.owned.append(self.dog.give_all());
+                        o.owned.append(&mut self.dog.give_all());
                     }
                     return Ok(())
                 },
                 _ => {
                     let discard = self.dog.len();
                     println!("In the dog, there was : {}", &self.dog);
-                    taker.hand.append(self.dog.give_all());
+                    taker.hand.append(&mut self.dog.give_all());
+                    taker.hand.sort();
                     taker.discard(discard);
                 },
             }
@@ -243,7 +246,7 @@ impl Game
             println!("{}", &turn);
             println!("Hand of {} : {}", &p, &p.hand);
             println!("Choices :");
-            let choices = &p.choices(&turn);
+            let choices = &p.choices(&turn)?;
             if choices.is_empty() {
                 println!("No choices available, invalid case.");
                 return Err(TarotErrorKind::InvalidCase.into())
@@ -275,7 +278,13 @@ impl Game
 
             let card = p.give_one(index);
             if card.is_fool() {
-                if p.last_turn() {
+                if !p.last_turn() {
+                    // RULE: the fool is always preserved to his owner
+                    p.owned.push(card);
+                    // we must mark as the fool was played
+                    turn.fool_played = true;
+                } else {
+                    // RULE: exception in the last turn, the fool is in game and can be lost
                     turn.put(card);
                     match p.team {
                         Some(Team::Attack)  => {
@@ -294,8 +303,6 @@ impl Game
                             return Err(TarotErrorKind::NoTeam.into())
                         }
                     }
-                } else {
-                    p.owned.push(card);
                 }
             } else {
                 turn.put(card);
@@ -315,7 +322,7 @@ impl Game
             }
         }
 
-        let cards = turn.take();
+        let mut cards = turn.take();
         println!("Winner is player {}", self.players[master_player]);
         // RULE: petit au bout works for last turn, or before last turn if a slam is occuring
         if cards.has_petit() &&
@@ -330,7 +337,7 @@ impl Game
             Some(Team::Defense) => self.defense_cards += cards.len(),
             _ => return Err(TarotErrorKind::NoTeam.into())
         }
-        self.players[master_player].owned.append(cards);
+        self.players[master_player].owned.append(&mut cards);
         self.players.rotate_left(master_player);
         Ok(())
     }
@@ -357,17 +364,32 @@ impl Game
             }
             match p.role {
                 Some(Role::Taker) => {
+                    assert!(taker_index.is_none());
                     taker_index = Some(i)
                 }
                 Some(Role::Ally) => {
+                    assert!(ally_index.is_none());
                     ally_index = Some(i)
                 }
                 Some(Role::Defenser) => {
                     defense.push(i)
                 }
-                _ => return Err(TarotErrorKind::InvalidCase.into()),
+                None => return Err(TarotErrorKind::InvalidCase.into()),
             }
         }
+        match self.mode {
+            Mode::Three => assert!(defense.len() == 2),
+            Mode::Four => assert!(defense.len() == 3),
+            Mode::Five => {
+                if ally_index.is_some() {
+                    assert!(defense.len() == 3)
+                } else {
+                    assert!(defense.len() == 4)
+                }
+            }
+        };
+
+        // give a low card if someone one a card to someone else
         if let Some(owning_index) = owning_card_player_index {
             let low_card = self.players[owning_index].give_low();
             if let Some(low) = low_card {
@@ -377,9 +399,9 @@ impl Game
             }
         }
         if let Some(ally_index) = ally_index {
-            let ally_cards = self.players[ally_index].owned.give_all();
+            let mut ally_cards = self.players[ally_index].owned.give_all();
             if let Some(taker_index) = taker_index {
-                self.players[taker_index].owned.append(ally_cards)
+                self.players[taker_index].owned.append(&mut ally_cards)
             } else {
                 println!("Cant merge cards of ally if no taker");
                 return Err(TarotErrorKind::NoTaker.into());
@@ -402,7 +424,7 @@ impl Game
                         println!("Petit au bout for attack: {}", 10.0 * f64::from(contract as u8));
                         10.0 * f64::from(contract as u8)
                     },
-                    _ => 0.0
+                    None => 0.0
                 }
             } else {
                 return Err(TarotErrorKind::NoContract.into())
@@ -430,9 +452,10 @@ impl Game
                 println!("Ally total points: {}", &self.players[ally_index].total);
             }
 
+            println!("Defense indexes : {:?}", defense);
             for defenser_index in defense {
                 self.players[defenser_index].total = -1.0 * points;
-                println!("Defense total points: {}", &self.players[defenser_index].total);
+                println!("Defenser {} total points: {}", defenser_index, &self.players[defenser_index].total);
             }
             //if handle_bonus != 0.0  && petit_au_bout_bonus != 0.0 && slam_bonus != 0.0 && ratio == 4.0 {
             //    helpers::wait_input();
