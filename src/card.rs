@@ -86,7 +86,7 @@ fn card_tests() {
     let trump_2 = Card::Trump(TrumpValue::_2);
     let petit = Card::Trump(TrumpValue::Petit);
     let fool = Card::Trump(TrumpValue::Fool);
-    let _21 = Card::Trump(TrumpValue::_21);
+    let unassailable = Card::Trump(TrumpValue::_21);
     let spade_1 = Card::Color(Color::Spade, ColorValue::_1);
     let spade_2 = Card::Color(Color::Spade, ColorValue::_2);
     let spade_3 = Card::Color(Color::Spade, ColorValue::_3);
@@ -104,10 +104,10 @@ fn card_tests() {
 
     assert!(!petit.discardable());
     assert!(!fool.discardable());
-    assert!(!_21.discardable());
+    assert!(!unassailable.discardable());
     assert!(!petit.discardable_forced());
     assert!(!fool.discardable_forced());
-    assert!(!_21.discardable_forced());
-    assert!(_21.points() - 4.5 < EPSILON);
+    assert!(!unassailable.discardable_forced());
+    assert!(unassailable.points() - 4.5 < EPSILON);
 }
 
