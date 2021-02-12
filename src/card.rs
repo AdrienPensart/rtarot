@@ -59,10 +59,7 @@ impl Card {
         }
     }
     pub fn is_trump(self) -> bool {
-        match self {
-            Self::Trump(_) => true,
-            _ => false
-        }
+        matches!(self, Self::Trump(_))
     }
     pub fn is_oudler(self) -> bool {
         match self {

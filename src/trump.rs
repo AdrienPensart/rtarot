@@ -40,10 +40,7 @@ impl fmt::Display for TrumpValue {
 
 impl TrumpValue {
     pub fn is_oudler(self) -> bool {
-        match self {
-            Self::Fool | Self::Petit | Self::_21  => true,
-            _  => false
-        }
+        matches!(self, Self::Fool | Self::Petit | Self::_21)
     }
 }
 

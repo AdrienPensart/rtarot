@@ -51,26 +51,26 @@ impl Handle {
     }
     pub fn limit(&self, mode: Mode) -> usize {
         match self {
-            Self::Refused => 0 as usize,
+            Self::Refused => 0_usize,
             Self::Simple => {
                 match mode {
-                    Mode::Three => 13 as usize,
-                    Mode::Four => 10 as usize,
-                    Mode::Five => 8 as usize
+                    Mode::Three => 13_usize,
+                    Mode::Four => 10_usize,
+                    Mode::Five => 8_usize
                 }
             },
             Self::Double => {
                 match mode {
-                    Mode::Three => 15 as usize,
-                    Mode::Four => 13 as usize,
-                    Mode::Five => 10 as usize
+                    Mode::Three => 15_usize,
+                    Mode::Four => 13_usize,
+                    Mode::Five => 10_usize
                 }
             }
             Self::Triple => {
                 match mode {
-                    Mode::Three => 18 as usize,
-                    Mode::Four => 15 as usize,
-                    Mode::Five => 13 as usize
+                    Mode::Three => 18_usize,
+                    Mode::Four => 15_usize,
+                    Mode::Five => 13_usize
                 }
             }
         }
