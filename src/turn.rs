@@ -33,11 +33,7 @@ impl Turn {
         None
     }
     pub fn master_card(&self) -> Option<&Card> {
-        if let Some(index) = self.master_index {
-            Some(&self.cards.0[index])
-        } else {
-            None
-        }
+        self.master_index.map(|index| &self.cards.0[index])
     }
 }
 

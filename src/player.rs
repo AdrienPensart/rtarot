@@ -277,8 +277,7 @@ impl Player
         if self.mode != Mode::Five {
             return Err(TarotErrorKind::InvalidMode.into());
         }
-        let mut value_callable : Vec<ColorValue> = Vec::new();
-        value_callable.push(ColorValue::King);
+        let mut value_callable : Vec<ColorValue> = vec![ColorValue::King];
         if self.hand.count_tete(ColorValue::King) == 4 {
             value_callable.push(ColorValue::Queen);
             if self.hand.count_tete(ColorValue::Queen) == 4 {
