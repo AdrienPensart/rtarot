@@ -73,7 +73,7 @@ impl Game
         game
     }
     fn is_consistent(&self) {
-        let sum = self.players.iter().map(|ref p| p.total).sum::<f64>();
+        let sum = self.players.iter().map(|p| p.total).sum::<f64>();
         debug!("Current points sum : {}", sum);
         assert!(sum == 0.0)
     }
@@ -124,7 +124,7 @@ impl Game
             }
 
             p.contract = if self.random {
-                Some(contracts[rand::thread_rng().gen_range(0, contracts.len())])
+                Some(contracts[rand::thread_rng().gen_range(0..contracts.len())])
             } else {
                 loop {
                     println!("{} must play : {}", &p, &p.hand);
@@ -191,7 +191,7 @@ impl Game
                 p.team = Some(Team::Attack);
                 p.role = Some(Role::Taker);
             } else if let Some(ref card) = callee {
-                if p.hand.0.contains(&&card) {
+                if p.hand.0.contains(card) {
                     p.team = Some(Team::Attack);
                     p.role = Some(Role::Ally);
                 }
@@ -264,7 +264,7 @@ impl Game
             let index = if self.auto && choices.len() == 1 {
                 choices[0]
             } else if self.random {
-                choices[rand::thread_rng().gen_range(0, choices.len())]
+                choices[rand::thread_rng().gen_range(0..choices.len())]
             } else {
                 loop {
                     let choice_index = read_index();

@@ -28,10 +28,10 @@ impl<'a> fmt::Display for Deck {
         }
         for colored in colors.iter() {
             if let Card::Color(c, cv) = colored {
-                if last_color == Some(&c) {
+                if last_color == Some(c) {
                     write!(f, "{} ", cv)?
                 } else {
-                    last_color = Some(&c);
+                    last_color = Some(c);
                     match last_color {
                         None => {
                             write!(f, "\t{} : {} ", c, cv)?

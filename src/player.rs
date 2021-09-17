@@ -18,25 +18,6 @@ use crate::turn::*;
 use crate::handle::*;
 use crate::helpers::*;
 
-//pub struct PlayerState<'a> {
-//    pub contract: Option<Contract>,
-//    pub team: Option<Team>,
-//    pub role: Option<Role>,
-//    pub callee: Option<Card>,
-//    pub handle : Option<Handle>,
-//    pub slam: bool,
-//    pub hand: Deck<'a>,
-//    pub owned: Deck<'a>,
-//}
-//
-//#[derive(Default, Clone, Debug)]
-//pub struct Player {
-//    pub name: String,
-//    pub total: f64,
-//    pub mode: Mode,
-//    random: bool,
-//}
-
 #[derive(Default, Clone, Debug)]
 pub struct Player {
     pub name: String,
@@ -125,7 +106,7 @@ impl Player
             true,
         ];
         self.slam = if self.random {
-            slams[rand::thread_rng().gen_range(0, slams.len())]
+            slams[rand::thread_rng().gen_range(0..slams.len())]
         } else {
             loop {
                 println!("Hand of {} : {}", &self, &self.hand);
@@ -158,7 +139,7 @@ impl Player
                     Handle::Refused => vec![]
                 };
                 handle = if self.random {
-                    handles[rand::thread_rng().gen_range(0, handles.len())].clone()
+                    handles[rand::thread_rng().gen_range(0..handles.len())].clone()
                 } else {
                     loop {
                         for &a in trumps.iter() {
@@ -195,7 +176,7 @@ impl Player
                                 }
                                 println!("You must discards {} trumps to present only {}", &to_discard, &limit);
                                 if self.random {
-                                    let index_to_remove = rand::thread_rng().gen_range(0, trumps.len());
+                                    let index_to_remove = rand::thread_rng().gen_range(0..trumps.len());
                                     trumps.remove(index_to_remove);
                                     break
                                 } else {
@@ -293,7 +274,7 @@ impl Player
         }
         let choices : Vec<Card> = Color::iter().cartesian_product(value_callable.iter()).map(|(c, cv)| Card::Color(c, *cv)).collect();
         if self.random {
-            Ok(choices[rand::thread_rng().gen_range(0, choices.len())])
+            Ok(choices[rand::thread_rng().gen_range(0..choices.len())])
         } else {
             loop {
                 println!("Hand of taker {}", &self.hand);
@@ -317,7 +298,7 @@ impl Player
         for _ in 0..discard {
             let discardables_indexes = self.hand.discardables(discard);
             let discard_index = if self.random {
-                discardables_indexes[rand::thread_rng().gen_range(0, discardables_indexes.len())]
+                discardables_indexes[rand::thread_rng().gen_range(0..discardables_indexes.len())]
             } else {
                 loop {
                     println!("Hand of taker {}", &self.hand);
