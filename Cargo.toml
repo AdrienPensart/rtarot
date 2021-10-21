@@ -3,7 +3,7 @@ name = "rtarot"
 default-run = "rtarot"
 version = "0.1.0"
 authors = ["Adrien Pensart <crunchengine@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 log = "0.4"
@@ -13,5 +13,5 @@ failure = "0.1.5"
 rand = "0.8"
 itertools = "0.10"
 strum = "0.21"
-strum_macros = "0.21"
+strum_macros = "0.22"
 num_cpus = "1.0"
