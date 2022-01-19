@@ -1,9 +1,3 @@
-use failure::Context;
-#[derive(Debug)]
-pub struct TarotError {
-    inner: Context<TarotErrorKind>,
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
 pub enum TarotErrorKind {
     #[fail(display = "A deck contains only one outsider: the petit.")]
