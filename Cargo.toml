@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 log = "0.4"
 lazy_static = "1.4.0"
-structopt = "0.3"
+clap = { version = "3.0.2", features = ["derive"] }
 failure = "0.1.5"
 rand = "0.8"
 itertools = "0.10"

@@ -7,6 +7,11 @@ extern crate itertools;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate lazy_static;
 
+use std::error;
+use std::thread;
+use clap::Parser;
+use strum::IntoEnumIterator;
+
 pub mod helpers;
 pub mod traits;
 pub mod errors;
@@ -23,42 +28,38 @@ pub mod mode;
 pub mod contract;
 pub mod game;
 
-use std::error;
-use std::thread;
-use structopt::StructOpt;
-use strum::IntoEnumIterator;
 use crate::mode::Mode;
 
 lazy_static! {
     static ref DEFAULT_CONCURRENCY: String = num_cpus::get().to_string();
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "RTarot", about = "Tarot simulation", version = "1.0", author = "Adrien P. <crunchengine@gmail.com>")]
-struct Opt {
+#[derive(Parser, Debug)]
+#[clap(name = "RTarot", about = "Tarot simulation", version = "1.0", author = "Adrien P. <crunchengine@gmail.com>")]
+struct Opts {
     /// Players mode
-    #[structopt(default_value = "4", possible_values = &["3", "4", "5"])]
+    #[clap(arg_enum, default_value = "four")]
     players: mode::Mode,
 
     /// Random playing mode
-    #[structopt(short = "r", long = "random")]
+    #[clap(short = 'r', long = "random")]
     random: bool,
 
     /// Auto playing mode when possible
-    #[structopt(short = "a", long = "auto")]
+    #[clap(short = 'a', long = "auto")]
     auto: bool,
 
     /// Test mode
-    #[structopt(short = "t", long = "test")]
+    #[clap(short = 't', long = "test")]
     test: bool,
 
     /// Concurrency in test mode, default is number of cpu on this machine
-    #[structopt(short, default_value = DEFAULT_CONCURRENCY.as_str())]
+    #[clap(short, default_value = DEFAULT_CONCURRENCY.as_str())]
     concurrency: usize
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let opt = Opt::from_args();
+    let opt = Opts::parse();
     if opt.test {
         let mut children = vec![];
         for _ in 0..opt.concurrency {

@@ -2,19 +2,19 @@ use std::fmt;
 use std::str::FromStr;
 use crate::errors::TarotErrorKind;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ArgEnum)]
 pub enum Mode {
     Three = 3,
     Four = 4,
-    Five = 5
+    Five = 5,
 }
 
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Three => write!(f, "{} players, 1 vs 2", Mode::Three as usize),
-            Self::Four  => write!(f, "{} players, 1 vs 3", Mode::Four as usize),
-            Self::Five  => write!(f, "{} players, 2 vs 3", Mode::Five as usize),
+            Self::Three => write!(f, "{} players, 1 vs 2 (easy)", Mode::Three as usize),
+            Self::Four  => write!(f, "{} players, 1 vs 3 (standard)", Mode::Four as usize),
+            Self::Five  => write!(f, "{} players, 2 vs 3 (call a king)", Mode::Five as usize),
         }
     }
 }
@@ -23,9 +23,9 @@ impl FromStr for Mode {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Mode, TarotErrorKind> {
         match s {
-            "3" => Ok(Self::Three),
-            "4" => Ok(Self::Four),
-            "5" => Ok(Self::Five),
+            "3" | "three" => Ok(Self::Three),
+            "4" | "four" => Ok(Self::Four),
+            "5" | "five" => Ok(Self::Five),
             _ => Err(TarotErrorKind::InvalidPlayers),
         }
     }
