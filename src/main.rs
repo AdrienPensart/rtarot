@@ -35,7 +35,7 @@ lazy_static! {
 }
 
 #[derive(Parser, Debug)]
-#[clap(name = "RTarot", about = "Tarot simulation", version = "1.0", author = "Adrien P. <crunchengine@gmail.com>")]
+#[clap(author, about, version)]
 struct Opts {
     /// Players mode
     #[clap(arg_enum, default_value = "four")]

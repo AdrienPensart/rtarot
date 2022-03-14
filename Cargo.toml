@@ -1,5 +1,6 @@
 [package]
 name = "rtarot"
+description = "Tarot simulation"
 default-run = "rtarot"
 version = "0.1.0"
 authors = ["Adrien Pensart <crunchengine@gmail.com>"]
@@ -12,6 +13,6 @@ clap = { version = "3.0.2", features = ["derive"] }
 failure = "0.1.5"
 rand = "0.8"
 itertools = "0.10"
-strum = "0.23"
-strum_macros = "0.23"
+strum = "0.24"
+strum_macros = "0.24"
 num_cpus = "1.0"
