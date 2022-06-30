@@ -37,7 +37,7 @@ impl fmt::Display for Game {
     }
 }
 
-impl<'a> Default for Game {
+impl Default for Game {
     fn default() -> Game
     {
         Game {

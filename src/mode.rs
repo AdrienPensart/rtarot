@@ -2,9 +2,10 @@ use std::fmt;
 use std::str::FromStr;
 use crate::errors::TarotErrorKind;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ArgEnum)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ArgEnum)]
 pub enum Mode {
     Three = 3,
+    #[default]
     Four = 4,
     Five = 5,
 }
@@ -51,10 +52,6 @@ impl Mode {
             Self::Five  => 15,
         }
     }
-}
-
-impl Default for Mode {
-    fn default() -> Mode { Mode::Four }
 }
 
 #[test]

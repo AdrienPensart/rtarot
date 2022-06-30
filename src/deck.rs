@@ -18,7 +18,7 @@ pub const MAX_CARDS : usize = 78;
 const MAX_POINTS : f64 = 91.0;
 const MAX_POINTS_WITHOUT_FOOL : f64 = 87.0;
 
-impl<'a> fmt::Display for Deck {
+impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut last_color : Option<&Color> = None;
         let (trumps, colors): (Vec<_>, Vec<_>) = self.0.iter().partition(|c| c.is_trump());
