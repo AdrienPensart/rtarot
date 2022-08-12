@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Role {
     Taker,
     Ally,
