@@ -1,6 +1,5 @@
 extern crate strum;
 extern crate rand;
-extern crate num_cpus;
 extern crate itertools;
 #[macro_use] extern crate log;
 #[macro_use] extern crate strum_macros;
@@ -31,7 +30,7 @@ pub mod game;
 use crate::mode::Mode;
 
 lazy_static! {
-    static ref DEFAULT_CONCURRENCY: String = num_cpus::get().to_string();
+    static ref DEFAULT_CONCURRENCY: String = thread::available_parallelism().unwrap().to_string();
 }
 
 #[derive(Parser, Debug)]
