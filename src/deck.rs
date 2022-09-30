@@ -7,6 +7,7 @@ use rand::seq::SliceRandom;
 use failure::Error;
 use crate::card::*;
 use crate::color::*;
+use crate::color_value::*;
 use crate::traits::*;
 use crate::trump::*;
 use crate::errors::TarotErrorKind;

@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::traits::*;
 use crate::color::*;
+use crate::color_value::*;
 use crate::trump::*;
 
 #[derive(Copy, Ord, Clone, Debug, Eq, PartialEq, PartialOrd)]

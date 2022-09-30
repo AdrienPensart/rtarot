@@ -8,6 +8,7 @@ use crate::traits::*;
 use crate::contract::*;
 use crate::deck::*;
 use crate::color::*;
+use crate::color_value::*;
 use crate::trump::*;
 use crate::card::*;
 use crate::errors::*;
