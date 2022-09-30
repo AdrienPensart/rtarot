@@ -4,10 +4,10 @@ extern crate itertools;
 #[macro_use] extern crate log;
 #[macro_use] extern crate strum_macros;
 #[macro_use] extern crate failure;
-#[macro_use] extern crate lazy_static;
 
 use std::error;
 use std::thread;
+use std::num::NonZeroUsize;
 use clap::Parser;
 use strum::IntoEnumIterator;
 
@@ -29,15 +29,11 @@ pub mod game;
 
 use crate::mode::Mode;
 
-lazy_static! {
-    static ref DEFAULT_CONCURRENCY: String = thread::available_parallelism().unwrap().to_string();
-}
-
 #[derive(Parser, Debug)]
 #[clap(author, about, version)]
 struct Opts {
     /// Players mode
-    #[clap(arg_enum, default_value = "four")]
+    #[clap(value_enum, default_value_t = mode::Mode::default())]
     players: mode::Mode,
 
     /// Random playing mode
@@ -53,15 +49,15 @@ struct Opts {
     test: bool,
 
     /// Concurrency in test mode, default is number of cpu on this machine
-    #[clap(short, default_value = DEFAULT_CONCURRENCY.as_str())]
-    concurrency: usize
+    #[clap(short, default_value_t = thread::available_parallelism().unwrap())]
+    concurrency: NonZeroUsize
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let opt = Opts::parse();
     if opt.test {
         let mut children = vec![];
-        for _ in 0..opt.concurrency {
+        for _ in 0..opt.concurrency.get() {
             children.push(thread::spawn(move || {
                 #[allow(clippy::infinite_iter)]
                 Mode::iter().cycle().for_each(helpers::test_game);

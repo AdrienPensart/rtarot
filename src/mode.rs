@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 use crate::errors::TarotErrorKind;
 
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ArgEnum)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ValueEnum)]
 pub enum Mode {
     Three = 3,
     #[default]
