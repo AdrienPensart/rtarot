@@ -1,8 +1,10 @@
 use std::fmt;
-use crate::traits::*;
-use crate::color::*;
+use regex::Regex;
+use colored::{ColoredString, Colorize};
+use crate::traits::{Representation, Colored, Discardable, Power, Points};
+use crate::color::Color;
 use crate::color_value::*;
-use crate::trump::*;
+use crate::trump_value::*;
 
 #[derive(Copy, Ord, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub enum Card {
@@ -78,18 +80,48 @@ impl Card {
     }
 }
 
+impl Colored for Card {
+    fn color(&self) -> &'static str {
+        match self {
+            Self::Color(c, _) => c.color(),
+            Self::Trump(t) => t.color()
+        }
+    }
+}
+
+impl Representation for Card {
+    fn repr(&self) -> ColoredString {
+        match self {
+            Self::Color(c, cv) => {
+                let re = Regex::new(r"[\*]").unwrap();
+                re.replace_all(&cv.repr(), format!("{}", c)).color(c.color())
+            },
+            Self::Trump(t) => t.repr()
+        }
+    }
+}
+
 #[test]
 fn card_tests() {
     use std::f64::EPSILON;
     let trump_2 = Card::Trump(TrumpValue::_2);
+    println!("{}", trump_2.repr());
     let petit = Card::Trump(TrumpValue::Petit);
+    println!("{}", petit.repr());
     let fool = Card::Trump(TrumpValue::Fool);
+    println!("{}", fool.repr());
     let unassailable = Card::Trump(TrumpValue::_21);
     let spade_1 = Card::Color(Color::Spade, ColorValue::_1);
     let spade_2 = Card::Color(Color::Spade, ColorValue::_2);
     let spade_3 = Card::Color(Color::Spade, ColorValue::_3);
     let spade_10 = Card::Color(Color::Spade, ColorValue::_10);
+    println!("{}", spade_10.repr());
     let diamond_3 = Card::Color(Color::Diamond, ColorValue::_3);
+    println!("{}", diamond_3.repr());
+    let heart_4 = Card::Color(Color::Heart, ColorValue::_4);
+    println!("{}", heart_4.repr());
+    let club_king = Card::Color(Color::Club, ColorValue::King);
+    println!("{}", club_king.repr());
 
     assert!(!spade_3.master(spade_10));
     assert!(!petit.master(trump_2));

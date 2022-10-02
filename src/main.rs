@@ -16,7 +16,7 @@ pub mod traits;
 pub mod errors;
 pub mod color;
 pub mod color_value;
-pub mod trump;
+pub mod trump_value;
 pub mod card;
 pub mod deck;
 pub mod player;

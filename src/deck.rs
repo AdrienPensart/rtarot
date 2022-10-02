@@ -1,15 +1,17 @@
 use std::fmt;
 use std::f64::EPSILON;
+use std::collections::BTreeMap;
+use colored::{ColoredString, Colorize};
 use strum::IntoEnumIterator;
 use itertools::Itertools;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use failure::Error;
 use crate::card::*;
-use crate::color::*;
+use crate::color::Color;
 use crate::color_value::*;
-use crate::traits::*;
-use crate::trump::*;
+use crate::traits::{Representation, Colored, Discardable, Points};
+use crate::trump_value::{TrumpValue, TRUMP_CHAR};
 use crate::errors::TarotErrorKind;
 
 #[derive(Default, Clone, Debug)]
@@ -25,7 +27,7 @@ impl fmt::Display for Deck {
         let (trumps, colors): (Vec<_>, Vec<_>) = self.0.iter().partition(|c| c.is_trump());
         let trumps_value : Vec<usize> = trumps.iter().filter_map(|t| match t {Card::Trump(v) => Some(*v as usize), _ => None } ).collect();
         if !trumps.is_empty() {
-            write!(f, "\n\t{} : {}", TRUMP_COLOR, trumps_value.iter().join(" "))?;
+            write!(f, "\n\t{} : {}", TRUMP_CHAR, trumps_value.iter().join(" "))?;
         }
         for colored in colors.iter() {
             if let Card::Color(c, cv) = colored {
@@ -61,9 +63,10 @@ impl Points for Deck {
 
 impl Deck {
     pub fn build_deck() -> Deck {
-        let mut d : Vec<Card> = TrumpValue::iter().map(Card::Trump).
-             chain(Color::iter().cartesian_product(ColorValue::iter()).map(|(c, cv)| Card::Color(c, cv))).
-             collect();
+        let mut d : Vec<Card> =
+            TrumpValue::iter().map(Card::Trump).
+            chain(Color::iter().cartesian_product(ColorValue::iter()).map(|(c, cv)| Card::Color(c, cv))).
+            collect();
         let mut rng = thread_rng();
         d.shuffle(&mut rng);
         Deck(d)
@@ -144,14 +147,39 @@ impl Deck {
     }
 }
 
+impl Representation for Deck {
+    fn repr(&self) -> ColoredString {
+        let mut buffers: BTreeMap<usize, String> = BTreeMap::new();
+        for card in self.0.iter() {
+            for (index, line) in card.repr().lines().enumerate() {
+                let line_and_reset = format!("{}\x1B[0m", &line.color(card.color()));
+                buffers.entry(index).and_modify(|buffer| {
+                    buffer.push_str(&line_and_reset);
+                }).or_insert(line_and_reset);
+            }
+        }
+        ColoredString::from(buffers.values().join("\n").as_str())
+    }
+}
+
 #[test]
 fn deck_tests() {
     let stack = Deck::build_deck();
-
     assert!(stack.len() == MAX_CARDS);
     assert!(stack.points() == MAX_POINTS);
 
     let empty = Deck::default();
     assert!(empty.is_empty());
+
+    let two_cards : Vec<Card> = vec![
+        Card::Trump(TrumpValue::_2),
+        Card::Color(Color::Heart, ColorValue::Jack),
+        Card::Color(Color::Spade, ColorValue::Knight),
+        Card::Color(Color::Diamond, ColorValue::Queen),
+        Card::Color(Color::Club, ColorValue::King),
+        Card::Trump(TrumpValue::Fool),
+    ];
+    let test_stack = Deck(two_cards);
+    println!("{}", test_stack.repr());
 }
 
