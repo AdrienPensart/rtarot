@@ -5,18 +5,18 @@ use strum::IntoEnumIterator;
 use crate::itertools::Itertools;
 
 use crate::traits::*;
-use crate::contract::*;
-use crate::deck::*;
+use crate::contract::Contract;
+use crate::deck::Deck;
 use crate::color::Color;
 use crate::color_value::ColorValue;
-use crate::trump_value::*;
-use crate::card::*;
+use crate::trump_value::TrumpValue;
+use crate::card::Card;
 use crate::errors::*;
-use crate::team::*;
-use crate::role::*;
-use crate::mode::*;
-use crate::turn::*;
-use crate::handle::*;
+use crate::team::Team;
+use crate::role::Role;
+use crate::mode::Mode;
+use crate::turn::Turn;
+use crate::handle::Handle;
 use crate::helpers::*;
 
 #[derive(Default, Clone, Debug)]

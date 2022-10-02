@@ -4,7 +4,7 @@ use crate::traits::{Representation, Colored, Discardable, Power, Points};
 use crate::color::Color;
 use crate::normal::Normal;
 use crate::color_value::ColorValue;
-use crate::trump_value::*;
+use crate::trump_value::TrumpValue;
 
 
 #[derive(Copy, Ord, Clone, Debug, Eq, PartialEq, PartialOrd)]

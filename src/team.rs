@@ -1,4 +1,5 @@
 use std::fmt;
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Team {
     Defense,

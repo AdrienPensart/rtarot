@@ -3,15 +3,15 @@ use std::fmt;
 use rand::{Rng, thread_rng};
 use rand::seq::SliceRandom;
 use strum::IntoEnumIterator;
-use crate::deck::*;
-use crate::mode::*;
-use crate::contract::*;
-use crate::player::*;
+use crate::deck::{Deck, MAX_CARDS};
+use crate::mode::Mode;
+use crate::contract::Contract;
+use crate::player::{Player, default_name};
 use crate::errors::*;
-use crate::turn::*;
-use crate::card::*;
-use crate::role::*;
-use crate::team::*;
+use crate::turn::Turn;
+use crate::card::Card;
+use crate::role::Role;
+use crate::team::Team;
 use crate::helpers::*;
 
 #[derive(Debug)]

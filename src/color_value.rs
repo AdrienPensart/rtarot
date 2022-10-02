@@ -1,7 +1,7 @@
 use std::fmt;
 use colored::{ColoredString, Colorize};
 use indoc::indoc;
-use crate::traits::*;
+use crate::traits::{Discardable, Points, Representation};
 
 #[derive(Hash, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum ColorValue {
