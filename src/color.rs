@@ -4,7 +4,7 @@ use colored::{ColoredString, Colorize};
 use crate::errors::TarotErrorKind;
 use crate::traits::{Representation, Colored};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
+#[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 #[repr(u32)]
 pub enum Color {
     Heart = '♥' as u32,

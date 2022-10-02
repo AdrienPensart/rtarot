@@ -7,9 +7,9 @@ use itertools::Itertools;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use failure::Error;
-use crate::card::*;
+use crate::card::Card;
 use crate::color::Color;
-use crate::color_value::*;
+use crate::color_value::ColorValue;
 use crate::traits::{Representation, Colored, Discardable, Points};
 use crate::trump_value::{TrumpValue, TRUMP_CHAR};
 use crate::errors::TarotErrorKind;
@@ -30,16 +30,17 @@ impl fmt::Display for Deck {
             write!(f, "\n\t{} : {}", TRUMP_CHAR, trumps_value.iter().join(" "))?;
         }
         for colored in colors.iter() {
-            if let Card::Color(c, cv) = colored {
-                if last_color == Some(c) {
-                    write!(f, "{} ", cv)?
+            // if let Card::Color(c, cv) = colored {
+            if let Card::Normal(n) = colored {
+                if last_color == Some(&n.color) {
+                    write!(f, "{} ", n)?
                 } else {
-                    last_color = Some(c);
+                    last_color = Some(&n.color);
                     match last_color {
                         None => {
-                            write!(f, "\t{} : {} ", c, cv)?
+                            write!(f, "\t{}", n)?
                         },
-                        _ => write!(f, "\n\t{} : {} ", c, cv)?,
+                        _ => write!(f, "\n\t{} ", n)?,
                     }
                 }
             }
@@ -62,10 +63,10 @@ impl Points for Deck {
 }
 
 impl Deck {
-    pub fn build_deck() -> Deck {
+    pub fn build_deck() -> Self {
         let mut d : Vec<Card> =
             TrumpValue::iter().map(Card::Trump).
-            chain(Color::iter().cartesian_product(ColorValue::iter()).map(|(c, cv)| Card::Color(c, cv))).
+            chain(Color::iter().cartesian_product(ColorValue::iter()).map(|(c, cv)| Card::normal(c, cv))).
             collect();
         let mut rng = thread_rng();
         d.shuffle(&mut rng);
@@ -116,11 +117,11 @@ impl Deck {
     pub fn count_oudlers(&self) -> usize {
         self.0.iter().filter(|card| card.is_oudler()).count()
     }
-    pub fn count_tete(&self, cv: ColorValue) -> usize {
-        self.0.iter().filter(|card| match card { Card::Color(_, v) => v == &cv, _ => false }).count()
+    pub fn count_tete(&self, value: ColorValue) -> usize {
+        self.0.iter().filter(|card| match card { Card::Normal(n) => n.value == value, _ => false }).count()
     }
     pub fn misere_tete(&self) -> bool {
-        !self.0.iter().any(|card| match card { Card::Color(_, v) => v.points() - 0.5 < EPSILON, _ => false })
+        !self.0.iter().any(|card| match card { Card::Normal(n) => n.points() - 0.5 < EPSILON, _ => false })
     }
     pub fn give(&mut self, size: usize) -> Deck {
         Deck(self.0.drain(0..size).collect())
@@ -173,10 +174,10 @@ fn deck_tests() {
 
     let two_cards : Vec<Card> = vec![
         Card::Trump(TrumpValue::_2),
-        Card::Color(Color::Heart, ColorValue::Jack),
-        Card::Color(Color::Spade, ColorValue::Knight),
-        Card::Color(Color::Diamond, ColorValue::Queen),
-        Card::Color(Color::Club, ColorValue::King),
+        Card::normal(Color::Heart, ColorValue::Jack),
+        Card::normal(Color::Spade, ColorValue::Knight),
+        Card::normal(Color::Diamond, ColorValue::Queen),
+        Card::normal(Color::Club, ColorValue::King),
         Card::Trump(TrumpValue::Fool),
     ];
     let test_stack = Deck(two_cards);

@@ -273,7 +273,7 @@ impl Player
                 }
             }
         }
-        let choices : Vec<Card> = Color::iter().cartesian_product(value_callable.iter()).map(|(c, cv)| Card::Color(c, *cv)).collect();
+        let choices : Vec<Card> = Color::iter().cartesian_product(value_callable.iter()).map(|(c, cv)| Card::normal(c, *cv)).collect();
         if self.random {
             Ok(choices[rand::thread_rng().gen_range(0..choices.len())])
         } else {
@@ -331,7 +331,7 @@ impl Player
         let mut other_colors = Vec::new();
         let mut same_color  = Vec::new();
         let mut compatibles = match (turn.called(), turn.master_card()) {
-            (Some(Card::Color(called_color, _)), Some(Card::Color(_, _))) => {
+            (Some(Card::Normal(called_normal)), Some(Card::Normal(_))) => {
                 for (i, card) in self.hand.0.iter().enumerate() {
                     match card {
                         Card::Trump(card_trump_value) => {
@@ -341,8 +341,8 @@ impl Player
                                 trumps.push(i);
                             }
                         },
-                        Card::Color(card_color, _) => {
-                            if card_color == called_color {
+                        Card::Normal(card_normal) => {
+                            if card_normal.color == called_normal.color {
                                 same_color.push(i);
                             } else {
                                 other_colors.push(i);
@@ -358,7 +358,7 @@ impl Player
                     other_colors
                 }
             },
-            (Some(Card::Color(called_color, _)), Some(Card::Trump(master_trump_value))) => {
+            (Some(Card::Normal(called_normal)), Some(Card::Trump(master_trump_value))) => {
                 for (i, card) in self.hand.0.iter().enumerate() {
                     match card {
                         Card::Trump(card_trump_value) => {
@@ -370,8 +370,8 @@ impl Player
                                 trumps_less.push(i);
                             }
                         },
-                        Card::Color(card_color, _) => {
-                            if card_color == called_color {
+                        Card::Normal(card_normal) => {
+                            if card_normal.color == called_normal.color {
                                 same_color.push(i);
                             } else {
                                 other_colors.push(i);
@@ -415,11 +415,11 @@ impl Player
                     other_colors
                 }
             },
-            (Some(Card::Color(_, _)), None) => {
+            (Some(Card::Normal(_)), None) => {
                 println!("There cannot be a called color and no master card, impossible case!");
                 return Err(TarotErrorKind::InvalidCase.into())
             }
-            (Some(Card::Trump(_)), Some(Card::Color(_, _))) => {
+            (Some(Card::Trump(_)), Some(Card::Normal(_))) => {
                 println!("There cannot be a called trump and a master color, impossible case!");
                 return Err(TarotErrorKind::InvalidCase.into())
             }
@@ -436,7 +436,7 @@ impl Player
                 (true, Mode::Five) => {
                     self.hand.0.iter().enumerate().filter(|(_, &card)| {
                         match (card, self.callee) {
-                            (Card::Color(color, value), Some(Card::Color(callee_color, callee_value))) => callee_color != color || value == callee_value,
+                            (Card::Normal(normal), Some(Card::Normal(callee_normal))) => callee_normal.color != normal.color || normal.value == callee_normal.value,
                             _ => true
                         }
                     }).map(|(i, _)| i).collect()
@@ -492,7 +492,7 @@ fn player_tests() {
     let mut handle_owner = Player {
         name: "Player looser".to_string(),
         contract: Some(Contract::GardeContre),
-        callee: Some(Card::Color(Color::Club, ColorValue::King)),
+        callee: Some(Card::normal(Color::Club, ColorValue::King)),
         mode: Mode::Five,
         random: true,
         ..Player::default()

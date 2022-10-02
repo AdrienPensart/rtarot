@@ -19,6 +19,7 @@ pub mod color_value;
 pub mod trump_value;
 pub mod card;
 pub mod deck;
+pub mod normal;
 pub mod player;
 pub mod role;
 pub mod team;
