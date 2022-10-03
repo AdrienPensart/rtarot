@@ -76,6 +76,8 @@ impl Player
         self.role = None;
         self.callee = None;
         self.handle = None;
+        self.hand = Deck::empty();
+        self.owned = Deck::empty();
     }
     pub fn slam_bonus(&self) -> f64 {
         if self.slam {
@@ -138,8 +140,14 @@ impl Player
                             println!("\t{}", &a);
                         }
                         println!("You have {} trumps, you can declare a handle : ", trumps.len());
-                        for (i, handle) in handles.iter().enumerate() {
-                            println!("{} (limit: {}, base points: {}) : press {}", handle, handle.points(), self.mode.handle_limit(handle), i);
+                        for (handle_index, handle) in handles.iter().enumerate() {
+                            println!(
+                                "{} handle (needs: {} trumps, points: {}) : press {}",
+                                handle,
+                                self.mode.handle_limit(handle),
+                                handle.points(),
+                                handle_index
+                            );
                         }
                         let handle_index = read_index();
                         if handle_index < handles.len() {
@@ -465,7 +473,7 @@ fn player_tests() {
     let mut winner = Player {
         name: "Player looser".to_string(),
         contract: Some(Contract::GardeContre),
-        owned: Deck::build_deck(),
+        owned: Deck::random(),
         mode: Mode::Five,
         random: true,
         ..Player::default()

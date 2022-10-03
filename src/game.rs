@@ -1,7 +1,6 @@
 use failure::Error;
 use std::fmt;
-use rand::{Rng, thread_rng};
-use rand::seq::SliceRandom;
+use rand::Rng;
 use strum::IntoEnumIterator;
 use array_init::array_init;
 use crate::deck::Deck;
@@ -20,7 +19,6 @@ use crate::constants::MAX_CARDS;
 #[derive(Debug)]
 pub struct Game<const MODE: usize> {
     dog: Deck,
-    deck: Deck,
     players: [Player; MODE],
     mode: Mode,
     auto: bool,
@@ -51,7 +49,6 @@ impl<const MODE: usize> Game<MODE>
             defense_cards: 0,
             attack_cards: 0,
             dog: Deck::default(),
-            deck: Deck::build_deck(),
             players,
             mode,
         })
@@ -91,38 +88,26 @@ impl<const MODE: usize> Game<MODE>
         assert!(sum == 0.0)
     }
     pub fn distribute(&mut self) -> Result<(), Error> {
-        let mut decks : Vec<Deck> = Vec::new();
-        let dog = self.dog.give_all();
-        decks.push(dog);
-        for p in self.players.iter_mut() {
-            let hand = p.hand.give_all();
-            decks.push(hand);
-            let deck = p.owned.give_all();
-            decks.push(deck);
-            p.prepare();
+        let mut new_deck = Deck::random();
+        self.dog = Deck::empty();
+        for player in self.players.iter_mut() {
+            player.prepare();
         }
-
-        let mut rng = thread_rng();
-        decks.shuffle(&mut rng);
-        for mut d in decks {
-            self.deck.append(&mut d.give_all());
-        }
-
         self.petit_au_bout = None;
         self.defense_cards = 0;
         self.attack_cards = 0;
 
-        self.dog = self.deck.give(self.mode.dog_size());
+        self.dog = new_deck.give(self.mode.dog_size());
         self.dog.sort();
-        for p in self.players.iter_mut() {
-            p.hand.append(&mut self.deck.give(self.mode.cards_per_player()))
+        for player in self.players.iter_mut() {
+            player.hand.append(&mut new_deck.give(self.mode.cards_per_player()))
         }
-        for p in self.players.iter_mut() {
-            if p.hand.petit_sec() {
+        for player in self.players.iter_mut() {
+            if player.hand.petit_sec() {
                 // RULE: PetitSec cancel the game
                 return Err(TarotErrorKind::PetitSec.into())
             }
-            p.hand.sort();
+            player.hand.sort();
         }
         Ok(())
     }
@@ -143,7 +128,7 @@ impl<const MODE: usize> Game<MODE>
                     println!("{} must play : {}", &p, &p.hand);
                     println!("Choose a contract, possibilities :");
                     for (contract_index, contract) in contracts.iter().enumerate() {
-                        println!("\t{} (x{}) : press {}", contract.to_string(), contract.multiplier(), contract_index)
+                        println!("\t{} (x{}) : press {}", contract, contract.multiplier(), contract_index)
                     }
                     let contract_index = read_index();
                     if contract_index < contracts.len() {

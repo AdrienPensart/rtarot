@@ -1,23 +1,12 @@
-use std::fmt;
 use crate::traits::Points;
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Default, Display, Eq, PartialEq, Debug, Clone, EnumIter)]
 pub enum Handle {
-    Refused  = 0,
-    Simple  = 20,
-    Double  = 30,
-    Triple  = 40,
-}
-
-impl fmt::Display for Handle {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Refused => write!(f, "refuse handle"),
-            Self::Simple  => write!(f, "simple handle"),
-            Self::Double  => write!(f, "double handle"),
-            Self::Triple  => write!(f, "triple handle"),
-        }
-    }
+    #[default]
+    Refused,
+    Simple,
+    Double,
+    Triple,
 }
 
 impl Points for Handle {

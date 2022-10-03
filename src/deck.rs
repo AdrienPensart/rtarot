@@ -58,7 +58,10 @@ impl Points for Deck {
 }
 
 impl Deck {
-    pub fn build_deck() -> Self {
+    pub fn empty() -> Self {
+        Self(vec![])
+    }
+    pub fn random() -> Self {
         let mut d : Vec<Card> =
             TrumpValue::iter().map(Card::Trump).
             chain(Color::iter().cartesian_product(ColorValue::iter()).map(|(c, cv)| Card::normal(c, cv))).
@@ -163,9 +166,9 @@ impl Representation for Deck {
 
 #[test]
 fn deck_tests() {
-    let stack = Deck::build_deck();
-    assert!(stack.len() == MAX_CARDS);
-    assert!(stack.points() == MAX_POINTS);
+    let deck = Deck::random();
+    assert!(deck.len() == MAX_CARDS);
+    assert!(deck.points() == MAX_POINTS);
 
     let empty = Deck::default();
     assert!(empty.is_empty());
