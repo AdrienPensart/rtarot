@@ -11,26 +11,21 @@ use crate::card::Card;
 use crate::color::Color;
 use crate::color_value::ColorValue;
 use crate::traits::{Representation, Colored, Discardable, Points};
-use crate::trump_value::{TrumpValue, TRUMP_CHAR};
+use crate::trump_value::TrumpValue;
 use crate::errors::TarotErrorKind;
+use crate::constants::{MAX_POINTS, MAX_CARDS, MAX_POINTS_WITHOUT_FOOL};
 
 #[derive(Default, Clone, Debug)]
 pub struct Deck (pub Vec<Card>);
 
-pub const MAX_CARDS : usize = 78;
-const MAX_POINTS : f64 = 91.0;
-const MAX_POINTS_WITHOUT_FOOL : f64 = 87.0;
-
 impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut last_color : Option<&Color> = None;
-        let (trumps, colors): (Vec<_>, Vec<_>) = self.0.iter().partition(|c| c.is_trump());
-        let trumps_value : Vec<usize> = trumps.iter().filter_map(|t| match t {Card::Trump(v) => Some(*v as usize), _ => None } ).collect();
+        let (trumps, colors) = self.trumps_and_colors();
         if !trumps.is_empty() {
-            write!(f, "\n\t{} : {}", TRUMP_CHAR, trumps_value.iter().join(" "))?;
+            write!(f, "\n\t{}", trumps.iter().join(" "))?;
         }
         for colored in colors.iter() {
-            // if let Card::Color(c, cv) = colored {
             if let Card::Normal(n) = colored {
                 if last_color == Some(&n.color) {
                     write!(f, "{} ", n)?
@@ -71,6 +66,9 @@ impl Deck {
         let mut rng = thread_rng();
         d.shuffle(&mut rng);
         Deck(d)
+    }
+    pub fn trumps_and_colors(&self) -> (Vec<Card>, Vec<Card>) {
+        self.0.iter().partition(|c| c.is_trump())
     }
     pub fn trumps(&self) -> Vec<&Card> {
         self.0.iter().filter(|&card| card.is_trump()).collect()

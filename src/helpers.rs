@@ -1,4 +1,3 @@
-use crate::mode::Mode;
 use std::io;
 
 #[allow(clippy::redundant_closure)]
@@ -6,22 +5,24 @@ pub fn read_index() -> usize {
     let mut input = String::new();
     loop {
         if io::stdin().read_line(&mut input).is_ok() {
-            return input.trim().parse::<usize>().unwrap();
+            if let Ok(output) = input.trim().parse::<usize>(){
+                return output;
+            }
         }
     }
 }
 
-pub fn wait_input() {
-    use std::io::prelude::*;
-    let mut stdin = io::stdin();
-    let _ = stdin.read(&mut [0u8]).unwrap();
-}
+// pub fn wait_input() {
+//     use std::io::prelude::*;
+//     let mut stdin = io::stdin();
+//     let _ = stdin.read(&mut [0u8]).unwrap();
+// }
 
-pub fn test_game(mode: Mode) {
+pub fn test_game<const MODE: usize>() {
     use crate::game::Game;
     use crate::errors::TarotErrorKind;
     loop {
-        let mut game = Game::new(mode, true, true);
+        let mut game: Game<MODE> = Game::new(true, true);
         if let Err(fail) = game.distribute() {
             if let Some(cause) = fail.find_root_cause().downcast_ref::<TarotErrorKind>() {
                if cause == &TarotErrorKind::PetitSec {

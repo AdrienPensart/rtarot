@@ -1,6 +1,6 @@
 use std::fmt;
 use colored::ColoredString;
-use crate::traits::{Representation, Colored, Discardable, Power, Points};
+use crate::traits::{Symbol, Representation, Colored, Discardable, Power, Points};
 use crate::color::Color;
 use crate::normal::Normal;
 use crate::color_value::ColorValue;
@@ -81,6 +81,15 @@ impl Card {
             (Self::Normal(_), Self::Trump(c)) => c == &TrumpValue::Fool,
             (Self::Normal(n1), Self::Normal(n2)) => n1.color != n2.color || n1.value > n2.value,
             (Self::Trump(v1), Self::Trump(v2)) => v1 > v2,
+        }
+    }
+}
+
+impl Symbol for Card {
+    fn symbol(&self) -> ColoredString {
+        match self {
+            Self::Normal(n) => n.symbol(),
+            Self::Trump(t) => t.symbol()
         }
     }
 }

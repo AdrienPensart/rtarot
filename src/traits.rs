@@ -13,6 +13,10 @@ pub trait Discardable {
     fn discardable_forced(&self) -> bool;
 }
 
+pub trait Symbol {
+    fn symbol(&self) -> ColoredString;
+}
+
 pub trait Representation {
     fn repr(&self) -> ColoredString;
 }

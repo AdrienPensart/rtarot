@@ -1,8 +1,10 @@
 use std::fmt;
 use std::str::FromStr;
 use crate::errors::TarotErrorKind;
+use crate::handle::Handle;
 
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ValueEnum)]
+#[repr(usize)]
 pub enum Mode {
     Three = 3,
     #[default]
@@ -20,6 +22,18 @@ impl fmt::Display for Mode {
     }
 }
 
+impl From<usize> for Mode {
+    fn from(mode: usize) -> Mode {
+        match mode {
+            3 => Self::Three,
+            4 => Self::Four,
+            5 => Self::Five,
+            // _ => Self::default()
+            _ => panic!("Cannot convert {} to a Mode", mode)
+        }
+    }
+}
+
 impl FromStr for Mode {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Mode, TarotErrorKind> {
@@ -33,23 +47,106 @@ impl FromStr for Mode {
 }
 
 impl Mode {
-    pub fn dog_size(self) -> usize {
+    pub const fn default() -> Self {
+        Self::Four
+    }
+
+    pub fn dog_size(&self) -> usize {
         match self {
             Self::Five => 3,
             _ => 6
         }
     }
-    pub fn cards_per_turn(self) -> usize {
+    pub fn cards_per_turn(&self) -> usize {
         match self {
             Self::Three=> 4,
             _ => 3
         }
     }
-    pub fn cards_per_player(self) -> usize {
+    pub fn cards_per_player(&self) -> usize {
         match self {
             Self::Three => 24,
             Self::Four  => 18,
             Self::Five  => 15,
+        }
+    }
+    pub fn player_name(&self, index: usize) -> &'static str {
+        match self {
+            Self::Three => match index {
+                0 => "East",
+                1 => "North",
+                2 => "South",
+                _ => panic!("Mode with 3 players does not support more than 3 default names")
+            },
+            Self::Four => match index {
+                0 => "East",
+                1 => "North",
+                2 => "South",
+                3 => "West",
+                _ => panic!("Mode with 4 players does not support more than 4 default names")
+            },
+            Self::Five => match index {
+                0 => "East",
+                1 => "North",
+                2 => "South",
+                3 => "West",
+                4 => "Compass",
+                _ => panic!("Mode with 5 players does not support more than 5 default names")
+            }
+        }
+    }
+    pub fn handle(&self, count: usize) -> Option<Handle> {
+        match self {
+            Self::Three => {
+                match count {
+                    0 ..= 12 => None,
+                    13 ..= 14 => Some(Handle::Simple),
+                    15 ..= 17 => Some(Handle::Double),
+                    _ => Some(Handle::Triple)
+                }
+            },
+            Self::Four => {
+                match count {
+                    0 ..= 9 => None,
+                    10 ..= 12 => Some(Handle::Simple),
+                    13 ..= 14 => Some(Handle::Double),
+                    _ => Some(Handle::Triple)
+                }
+            },
+            Self::Five => {
+                match count {
+                    0 ..= 7 => None,
+                    8 ..= 9 => Some(Handle::Simple),
+                    10 ..= 12 => Some(Handle::Double),
+                    _ => Some(Handle::Triple)
+                }
+            }
+        }
+    }
+    pub fn handle_limit(&self, handle: &Handle) -> usize {
+        match handle {
+            Handle::Refused => 0_usize,
+            Handle::Simple => {
+                match self {
+                    Self::Three => 13_usize,
+                    Self::Four => 10_usize,
+                    Self::Five => 8_usize
+                }
+            },
+            Handle::Double => {
+                match self {
+                    Self::Three => 15_usize,
+                    Self::Four => 13_usize,
+                    Self::Five => 10_usize
+                }
+            }
+            Handle::Triple => {
+                match self {
+                    Self::Three => 18_usize,
+                    Self::Four => 15_usize,
+                    Self::Five => 13_usize
+                }
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ use strum::IntoEnumIterator;
 
 pub mod helpers;
 pub mod traits;
+pub mod constants;
 pub mod errors;
 pub mod color;
 pub mod color_value;
@@ -62,30 +63,24 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         for _ in 0..opt.concurrency.get() {
             children.push(thread::spawn(move || {
                 #[allow(clippy::infinite_iter)]
-                Mode::iter().cycle().for_each(helpers::test_game);
+                Mode::iter().cycle().for_each(|m| {
+                    match m {
+                        Mode::Three => helpers::test_game::<3>(),
+                        Mode::Four => helpers::test_game::<4>(),
+                        Mode::Five => helpers::test_game::<5>(),
+                    }
+                });
             }));
         }
         for child in children {
             let _ = child.join();
         }
     } else {
-        let mut game = game::Game::new(opt.players, opt.random, opt.auto);
-        loop {
-            game.distribute()?;
-            game.bidding()?;
-            if game.passed() {
-                println!("Everyone passed !");
-                continue
-            }
-            game.discard()?;
-            while !game.finished() {
-                game.play()?;
-            }
-            game.count_points()?;
-            break
-        }
-        println!("GAME ENDED");
-        println!("{}", &game);
+        match opt.players {
+            Mode::Three => game::Game::<3>::new(opt.random, opt.auto).start()?,
+            Mode::Four => game::Game::<4>::new(opt.random, opt.auto).start()?,
+            Mode::Five => game::Game::<5>::new(opt.random, opt.auto).start()?,
+        };
     }
     Ok(())
 }

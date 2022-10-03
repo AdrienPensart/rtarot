@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::deck::Deck;
 use crate::card::Card;
+use crate::traits::{Symbol, Representation};
 
 #[derive(Debug, Default)]
 pub struct Turn {
@@ -39,9 +40,9 @@ impl Turn {
 
 impl fmt::Display for Turn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Turn cards: {}", &self.cards)?;
+        write!(f, "Turn cards: \n{}", &self.cards.repr())?;
         if let Some(called) = self.called() {
-            write!(f, "\nCalled: {}", &called)?;
+            write!(f, "\nCalled: {}", &called.symbol())?;
         }
         if let Some(master) = self.master_card() {
             write!(f, "\nMaster: {}", &master)?;

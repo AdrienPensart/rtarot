@@ -3,31 +3,33 @@ use std::fmt;
 use rand::{Rng, thread_rng};
 use rand::seq::SliceRandom;
 use strum::IntoEnumIterator;
-use crate::deck::{Deck, MAX_CARDS};
+use array_init::array_init;
+use crate::deck::Deck;
 use crate::mode::Mode;
 use crate::contract::Contract;
-use crate::player::{Player, default_name};
+use crate::player::Player;
 use crate::errors::*;
 use crate::turn::Turn;
 use crate::card::Card;
 use crate::role::Role;
 use crate::team::Team;
+use crate::traits::{Symbol, Points};
 use crate::helpers::*;
+use crate::constants::MAX_CARDS;
 
 #[derive(Debug)]
-pub struct Game {
+pub struct Game<const MODE: usize> {
     dog: Deck,
     deck: Deck,
+    players: [Player; MODE],
     mode: Mode,
-    players: Vec<Player>,
-    random: bool,
     auto: bool,
     petit_au_bout: Option<Team>,
     defense_cards: usize,
     attack_cards: usize,
 }
 
-impl fmt::Display for Game {
+impl<const MODE: usize> fmt::Display for Game<MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Game with dog {} and players : ", self.dog)?;
         for p in &self.players {
@@ -37,40 +39,54 @@ impl fmt::Display for Game {
     }
 }
 
-impl Default for Game {
-    fn default() -> Game
+impl<const MODE: usize> Default for Game<MODE> {
+    fn default() -> Self
     {
+        let mode: Mode = MODE.into();
+        let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, false));
         Game {
-            random: false,
             auto: false,
             petit_au_bout: None,
             defense_cards: 0,
             attack_cards: 0,
             dog: Deck::default(),
             deck: Deck::build_deck(),
-            players: vec![Player::new(Mode::default(), false); Mode::default() as usize],
-            mode: Mode::default(),
+            players,
+            mode,
         }
     }
 }
 
-impl Game
+impl<const MODE: usize> Game<MODE>
 {
-    pub fn new(mode: Mode, random: bool, auto: bool) -> Game {
-        let mut game = Game {
-            random,
+    pub fn new(random: bool, auto: bool) -> Game<MODE> {
+        let mode: Mode = MODE.into();
+        let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, random));
+        Game {
             auto,
-            players: vec![Player::new(mode, random); mode as usize],
+            players,
             mode,
             ..Game::default()
-        };
-        for (i, p) in game.players.iter_mut().enumerate() {
-            if let Ok(name) = default_name(i) {
-                p.name = name;
-            }
-            p.mode = mode;
         }
-        game
+    }
+    pub fn start(mut self) -> Result<(), Error> {
+        loop {
+            self.distribute()?;
+            self.bidding()?;
+            if self.passed() {
+                println!("Everyone passed !");
+                continue
+            }
+            self.discard()?;
+            while !self.finished() {
+                self.play()?;
+            }
+            self.count_points()?;
+            break
+        }
+        println!("GAME ENDED");
+        println!("{}", self);
+        Ok(())
     }
     fn is_consistent(&self) {
         let sum = self.players.iter().map(|p| p.total).sum::<f64>();
@@ -123,7 +139,7 @@ impl Game
                 continue
             }
 
-            p.contract = if self.random {
+            p.contract = if p.random {
                 Some(contracts[rand::thread_rng().gen_range(0..contracts.len())])
             } else {
                 loop {
@@ -166,7 +182,7 @@ impl Game
     pub fn finished(&self) -> bool {
         self.players.iter().all(|p| p.hand.is_empty())
     }
-    pub fn discard (&mut self) -> Result<(), Error> {
+    pub fn discard(&mut self) -> Result<(), Error> {
         if self.passed() {
             return Err(TarotErrorKind::NoTaker.into());
         }
@@ -220,8 +236,8 @@ impl Game
                     return Ok(())
                 }
                 Some(Contract::GardeContre) => {
-                    for o in others {
-                        o.owned.append(&mut self.dog.give_all());
+                    for other in others {
+                        other.owned.append(&mut self.dog.give_all());
                     }
                     return Ok(())
                 },
@@ -236,39 +252,39 @@ impl Game
         }
         Ok(())
     }
-    pub fn play (&mut self) -> Result<(), Error> {
+    pub fn play(&mut self) -> Result<(), Error> {
         let mut turn = Turn::default();
         let mut master_player: usize = 0;
-        for (i, p) in self.players.iter_mut().enumerate() {
-            if p.is_first_turn() {
-                p.announce_handle();
+        let mut master_player_name: String = self.players[master_player].name.clone();
+        for (current_player_index, current_player) in self.players.iter_mut().enumerate() {
+            if current_player.is_first_turn() {
+                current_player.announce_handle();
             }
-            println!("{}", &turn);
-            println!("Hand of {} : {}", &p, &p.hand);
+            println!("Hand of {} : {}", &current_player, &current_player.hand);
             println!("Choices :");
-            let choices = &p.choices(&turn)?;
-            if choices.is_empty() {
-                println!("No choices available, invalid case.");
+            let possible_choices = &current_player.choices(&turn)?;
+            if possible_choices.is_empty() {
+                println!("No possible choices available, invalid case.");
                 return Err(TarotErrorKind::InvalidCase.into())
             }
-            for &i in choices {
-                println!("\t{0: <2} : {1}", &i, p.hand.0[i]);
+            for &possible_choice in possible_choices {
+                println!("\t{0: <4} : press {1}", current_player.hand.0[possible_choice], possible_choice);
             }
 
-            if let Some(master) = turn.master_card() {
-                println!("{} must play color {}", &p.name, &master)
+            if let Some(called) = turn.called() {
+                println!("{} must play color {}", current_player.name, called.symbol())
             } else {
-                println!("{} is first to play:", &p.name)
+                println!("{} is first to play:", current_player.name)
             }
 
-            let index = if self.auto && choices.len() == 1 {
-                choices[0]
-            } else if self.random {
-                choices[rand::thread_rng().gen_range(0..choices.len())]
+            let final_choice = if self.auto && possible_choices.len() == 1 {
+                possible_choices[0]
+            } else if current_player.random {
+                possible_choices[rand::thread_rng().gen_range(0..possible_choices.len())]
             } else {
                 loop {
                     let choice_index = read_index();
-                    if choices.contains(&choice_index) {
+                    if possible_choices.contains(&choice_index) {
                         break choice_index
                     } else {
                         println!("Error, please retry")
@@ -276,27 +292,27 @@ impl Game
                 }
             };
 
-            let card = p.give_one(index);
+            let card = current_player.give_one(final_choice);
             if card.is_fool() {
-                if !p.last_turn() {
+                if !current_player.last_turn() {
                     // RULE: the fool is always preserved to his owner
-                    p.owned.push(card);
+                    current_player.owned.push(card);
                     // we must mark as the fool was played
                     turn.fool_played = true;
                 } else {
                     // RULE: exception in the last turn, the fool is in game and can be lost
                     turn.put(card);
-                    match p.team {
+                    match current_player.team {
                         Some(Team::Attack)  => {
                             if self.attack_cards == MAX_CARDS - self.mode.dog_size() {
                                 turn.master_index = Some(turn.len()-1);
-                                master_player = i;
+                                master_player = current_player_index;
                             }
                         },
                         Some(Team::Defense) => {
                             if self.defense_cards == MAX_CARDS - self.mode.dog_size() {
                                 turn.master_index = Some(turn.len()-1);
-                                master_player = i;
+                                master_player = current_player_index;
                             }
                         },
                         _ => {
@@ -308,18 +324,21 @@ impl Game
                 turn.put(card);
                 if let Some(master) = turn.master_card() {
                     if master.master(card) {
-                        println!("Master card is {}, so player {} stays master", master, master_player);
+                        println!("Master card is {}, so player {} stays master", master, master_player_name);
                     } else {
-                        println!("Master card is {}, so player {} becomes master", card, i);
-                        master_player = i;
+                        println!("Master card is {}, so player {} becomes master", card, current_player.name);
+                        master_player = current_player_index;
+                        master_player_name = current_player.name.clone();
                         turn.master_index = Some(turn.len()-1);
                     }
                 } else {
-                    println!("First card is {}, so player {} becomes master", card, i);
-                    master_player = i;
+                    println!("First card is {}, so player {} becomes master", card, current_player.name);
+                    master_player = current_player_index;
+                    master_player_name = current_player.name.clone();
                     turn.master_index = Some(turn.len()-1);
                 }
             }
+            println!("{}", &turn);
         }
 
         let mut cards = turn.take();
@@ -359,7 +378,7 @@ impl Game
                 missing_card_player_index = Some(i);
             }
             if let Some(handle) = &p.handle {
-                handle_bonus += f64::from(handle.clone() as u8);
+                handle_bonus = handle.points();
                 println!("Handle bonus: {}", handle_bonus);
             }
             match p.role {
@@ -472,7 +491,7 @@ impl Game
 #[test]
 fn game_tests() {
     use crate::mode::*;
-    test_game(Mode::Three);
-    test_game(Mode::Four);
-    test_game(Mode::Five);
+    test_game::<{ Mode::Three as usize }>();
+    test_game::<{ Mode::Four as usize }>();
+    test_game::<{ Mode::Five as usize }>();
 }

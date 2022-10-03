@@ -17,6 +17,7 @@ use crate::role::Role;
 use crate::mode::Mode;
 use crate::turn::Turn;
 use crate::handle::Handle;
+use crate::constants::BASE_CONTRACT_POINTS;
 use crate::helpers::*;
 
 #[derive(Default, Clone, Debug)]
@@ -24,26 +25,15 @@ pub struct Player {
     pub name: String,
     pub contract: Option<Contract>,
     pub slam: bool,
+    pub mode: Mode,
     pub team: Option<Team>,
     pub role: Option<Role>,
     pub hand: Deck,
     pub owned: Deck,
     pub callee: Option<Card>,
     pub total: f64,
-    pub mode: Mode,
     pub handle : Option<Handle>,
-    random: bool,
-}
-
-pub fn default_name(index: usize) -> Result<String, Error> {
-    match index {
-        0 => Ok("East".to_string()),
-        1 => Ok("North".to_string()),
-        2 => Ok("South".to_string()),
-        3 => Ok("West".to_string()),
-        4 => Ok("Compass".to_string()),
-        _ => Err(TarotErrorKind::InvalidCase.into())
-    }
+    pub random: bool,
 }
 
 impl fmt::Display for Player {
@@ -71,10 +61,11 @@ impl fmt::Display for Player {
 
 impl Player
 {
-    pub fn new(mode: Mode, random: bool) -> Player {
+    pub fn new(name: String, mode: Mode, random: bool) -> Player {
         Player {
-            mode,
+            name,
             random,
+            mode,
             ..Player::default()
         }
     }
@@ -129,7 +120,7 @@ impl Player
         let mut trumps = self.hand.trumps();
         let discarded_trumps = self.owned.trumps();
         let mut total_trumps = trumps.len() + discarded_trumps.len();
-        let handle = Handle::new(total_trumps, self.mode);
+        let handle = self.mode.handle(total_trumps);
         self.handle = match handle {
             None => None,
             Some(mut handle) => {
@@ -147,8 +138,8 @@ impl Player
                             println!("\t{}", &a);
                         }
                         println!("You have {} trumps, you can declare a handle : ", trumps.len());
-                        for (i, h) in handles.iter().enumerate() {
-                            println!("{} (limit: {}) : press {}", h, h.limit(self.mode), i);
+                        for (i, handle) in handles.iter().enumerate() {
+                            println!("{} (limit: {}, base points: {}) : press {}", handle, handle.points(), self.mode.handle_limit(handle), i);
                         }
                         let handle_index = read_index();
                         if handle_index < handles.len() {
@@ -167,7 +158,7 @@ impl Player
                     trumps.extend(discarded_trumps.iter());
                     total_trumps = trumps.len();
 
-                    let limit = handle.limit(self.mode);
+                    let limit = self.mode.handle_limit(&handle);
                     if total_trumps > limit {
                         let mut to_discard = total_trumps - limit;
                         while to_discard > 0 {
@@ -232,6 +223,7 @@ impl Player
         let contract_points = self.owned.points_for_oudlers()?;
         println!("Taker owned points: {}", &points);
         println!("Contract todo: {}", &contract_points);
+        println!("Contract base: {}", BASE_CONTRACT_POINTS);
         println!("Contract difference: {}", points - contract_points);
 
         match self.contract {
@@ -239,11 +231,11 @@ impl Player
             Some(contract) => {
                 println!("Taker contract: {}", &contract);
                 if points >= contract_points {
-                    println!("Contract total: {}", points - contract_points + 25.0);
-                    Ok((points - contract_points + 25.0) * f64::from(contract as u8))
+                    println!("Contract total: {}", points - contract_points + BASE_CONTRACT_POINTS);
+                    Ok((points - contract_points + BASE_CONTRACT_POINTS) * f64::from(contract as u8))
                 } else {
-                    println!("Contract total: {}", points - contract_points - 25.0);
-                    Ok((points - contract_points - 25.0) * f64::from(contract as u8))
+                    println!("Contract total: {}", points - contract_points - BASE_CONTRACT_POINTS);
+                    Ok((points - contract_points - BASE_CONTRACT_POINTS) * f64::from(contract as u8))
                 }
             }
         }
@@ -294,19 +286,20 @@ impl Player
         }
     }
     pub fn discard (&mut self, discard: usize) {
-        println!("{}", &self);
-        println!("You must discard {} cards", discard);
-        for _ in 0..discard {
+        println!("{}", self);
+        for current in 0..discard {
+            println!("You must discard {} cards", discard - current);
             let discardables_indexes = self.hand.discardables(discard);
             let discard_index = if self.random {
                 discardables_indexes[rand::thread_rng().gen_range(0..discardables_indexes.len())]
             } else {
                 loop {
-                    println!("Hand of taker {}", &self.hand);
+                    println!("Hand of taker: {}", self.hand);
                     println!("Possibilities:");
                     for &i in &discardables_indexes {
                         println!("\t{0: <4} : press {1}", self.hand.0[i], i);
                     }
+                    println!("Currently discarded: {}", self.owned);
                     let discard_index = read_index();
                     if discardables_indexes.contains(&discard_index) {
                         break discard_index
@@ -454,6 +447,8 @@ impl Player
 #[test]
 fn player_tests() {
     use std::f64::EPSILON;
+    use crate::constants::MAX_POINTS;
+
     let looser = Player {
         name: "Player looser".to_string(),
         contract: Some(Contract::Petite),
@@ -484,7 +479,7 @@ fn player_tests() {
         println!("\t{0: <2} : {1}", &i, &winner.hand.0[i]);
     }
 
-    assert!((winner.points() - 91.0).abs() < EPSILON);
+    assert!((winner.points() - MAX_POINTS).abs() < EPSILON);
     assert!(winner.count_oudlers() == 3);
     println!("winner points: {}", winner.contract_points().unwrap());
     assert!((winner.contract_points().unwrap() - 480.0).abs() < EPSILON);

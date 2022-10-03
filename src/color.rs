@@ -2,31 +2,36 @@ use std::fmt;
 use std::str::FromStr;
 use colored::{ColoredString, Colorize};
 use crate::errors::TarotErrorKind;
-use crate::traits::{Representation, Colored};
+use crate::traits::{Symbol, Representation, Colored};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-#[repr(u32)]
 pub enum Color {
-    Heart = '♥' as u32,
-    Spade = '♠' as u32,
-    Diamond = '♦' as u32,
-    Club = '♣' as u32,
+    Heart,
+    Spade,
+    Diamond,
+    Club,
 }
 
 impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.repr().color(self.color()))
+        write!(f, "{}", self.repr())
     }
 }
 
-impl Representation for Color {
-    fn repr(&self) -> ColoredString {
+impl Symbol for Color {
+    fn symbol(&self) -> ColoredString {
         match self {
             Self::Spade   => "♠".color(self.color()),
             Self::Diamond => "♦".color(self.color()),
             Self::Club  => "♣".color(self.color()),
             Self::Heart   => "♥".color(self.color()),
         }
+    }
+}
+
+impl Representation for Color {
+    fn repr(&self) -> ColoredString {
+        self.symbol()
     }
 }
 

@@ -3,7 +3,7 @@ use regex::Regex;
 use colored::{ColoredString, Colorize};
 use crate::color::Color;
 use crate::color_value::ColorValue;
-use crate::traits::{Representation, Colored, Discardable, Power, Points};
+use crate::traits::{Symbol, Representation, Colored, Discardable, Power, Points};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Normal {
@@ -19,7 +19,7 @@ impl Normal {
 
 impl fmt::Display for Normal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} : {}", self.color, self.value)
+        write!(f, "{}{}", self.value, self.color)
     }
 }
 
@@ -47,6 +47,12 @@ impl Discardable for Normal {
 impl Colored for Normal {
     fn color(&self) -> &'static str {
         self.color.color()
+    }
+}
+
+impl Symbol for Normal {
+    fn symbol(&self) -> ColoredString {
+        self.color.symbol()
     }
 }
 

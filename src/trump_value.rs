@@ -1,9 +1,7 @@
 use std::fmt;
 use indoc::indoc;
 use colored::{ColoredString, Colorize};
-use crate::traits::{Representation, Colored, Discardable, Points};
-
-pub static TRUMP_CHAR: &str = "#";
+use crate::traits::{Symbol, Representation, Colored, Discardable, Points};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum TrumpValue {
@@ -35,7 +33,7 @@ impl fmt::Display for TrumpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Fool   => write!(f, "🃏"),
-            _ => write!(f, "{0} : {1: <2}", TRUMP_CHAR, *self as usize)
+            _ => write!(f, "{}{}", self.symbol(), *self as usize)
         }
     }
 }
@@ -48,7 +46,13 @@ impl TrumpValue {
 
 impl Colored for TrumpValue {
     fn color(&self) -> &'static str {
-        "purple"
+        "cyan"
+    }
+}
+
+impl Symbol for TrumpValue {
+    fn symbol(&self) -> ColoredString {
+        "#".color(self.color())
     }
 }
 
