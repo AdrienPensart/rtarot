@@ -65,7 +65,7 @@ impl Deck {
             collect();
         let mut rng = thread_rng();
         d.shuffle(&mut rng);
-        Deck(d)
+        Self(d)
     }
     pub fn trumps_and_colors(&self) -> (Vec<Card>, Vec<Card>) {
         self.0.iter().partition(|c| c.is_trump())
@@ -121,11 +121,11 @@ impl Deck {
     pub fn misere_tete(&self) -> bool {
         !self.0.iter().any(|card| match card { Card::Normal(n) => n.points() - 0.5 < EPSILON, _ => false })
     }
-    pub fn give(&mut self, size: usize) -> Deck {
-        Deck(self.0.drain(0..size).collect())
+    pub fn give(&mut self, size: usize) -> Self {
+        Self(self.0.drain(0..size).collect())
     }
-    pub fn give_all(&mut self) -> Deck {
-        Deck(self.0.drain(..).collect())
+    pub fn give_all(&mut self) -> Self {
+        Self(self.0.drain(..).collect())
     }
     pub fn give_low(&mut self) -> Option<Card> {
         let low_index = &self.0.iter().enumerate().filter_map(|(i, c)| if c.points() - 0.5 < EPSILON { Some(i) } else { None }).next();
@@ -135,7 +135,7 @@ impl Deck {
             None
         }
     }
-    pub fn append(&mut self, deck: &mut Deck) {
+    pub fn append(&mut self, deck: &mut Self) {
         self.0.append(&mut deck.0);
     }
     pub fn push(&mut self, card: Card){

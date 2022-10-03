@@ -13,7 +13,7 @@ pub struct Normal {
 
 impl Normal {
     pub fn new(color: Color, value: ColorValue) -> Self {
-        Normal {color, value}
+        Self {color, value}
     }
 }
 

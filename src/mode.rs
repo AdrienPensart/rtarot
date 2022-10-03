@@ -36,7 +36,7 @@ impl TryFrom<usize> for Mode {
 
 impl FromStr for Mode {
     type Err = TarotErrorKind;
-    fn from_str(s: &str) -> Result<Mode, TarotErrorKind> {
+    fn from_str(s: &str) -> Result<Self, TarotErrorKind> {
         match s {
             "3" | "three" => Ok(Self::Three),
             "4" | "four" => Ok(Self::Four),

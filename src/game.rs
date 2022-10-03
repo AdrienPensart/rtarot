@@ -45,7 +45,7 @@ impl<const MODE: usize> Game<MODE>
     {
         let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, false));
-        Ok(Game {
+        Ok(Self {
             auto: false,
             petit_au_bout: None,
             defense_cards: 0,
@@ -59,7 +59,7 @@ impl<const MODE: usize> Game<MODE>
     pub fn new(random: bool, auto: bool) -> Result<Self, Error> {
         let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, random));
-        Ok(Game {
+        Ok(Self {
             auto,
             players,
             mode,

@@ -48,7 +48,7 @@ impl Colored for Color {
 
 impl FromStr for Color {
     type Err = TarotErrorKind;
-    fn from_str(s: &str) -> Result<Color, TarotErrorKind> {
+    fn from_str(s: &str) -> Result<Self, TarotErrorKind> {
         match s {
             "♥" => Ok(Self::Heart),
             "♠" => Ok(Self::Spade),

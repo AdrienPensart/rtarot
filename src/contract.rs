@@ -37,7 +37,7 @@ impl Contract {
 
 impl FromStr for Contract {
     type Err = TarotErrorKind;
-    fn from_str(s: &str) -> Result<Contract, TarotErrorKind> {
+    fn from_str(s: &str) -> Result<Self, TarotErrorKind> {
         match s {
             "0" => Ok(Self::Pass),
             "1" => Ok(Self::Petite),

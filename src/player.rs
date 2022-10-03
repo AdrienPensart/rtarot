@@ -61,12 +61,12 @@ impl fmt::Display for Player {
 
 impl Player
 {
-    pub fn new(name: String, mode: Mode, random: bool) -> Player {
-        Player {
+    pub fn new(name: String, mode: Mode, random: bool) -> Self {
+        Self {
             name,
             random,
             mode,
-            ..Player::default()
+            ..Self::default()
         }
     }
     pub fn prepare(&mut self) {

@@ -75,7 +75,7 @@ impl Card {
             _ => false
         }
     }
-    pub fn master(self, arg: Card) -> bool {
+    pub fn master(self, arg: Self) -> bool {
         match (&self, &arg) {
             (Self::Trump(c), Self::Normal(_)) => c != &TrumpValue::Fool,
             (Self::Normal(_), Self::Trump(c)) => c == &TrumpValue::Fool,
