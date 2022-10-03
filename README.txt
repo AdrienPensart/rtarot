@@ -6,10 +6,12 @@ Implemented with :
 
 Usage :
 - coverage :
-RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
-RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo tarpaulin -v
-- test : cargo test -- --nocapture
-- clippy : cargo clippy --all-targets --all-features -- -D warnings
+  - cargo install cargo-tarpaulin
+  - cargo tarpaulin -v
+- test :
+  - cargo test -- --nocapture
+- linting :
+  - clippy : cargo clippy --all-targets --all-features -- -D warnings
 
 Todo :
 - type games : defense, attack, petit hunt, full assets
@@ -19,3 +21,5 @@ Todo :
     - cut game
     - random reunion
 - duplicate
+
+70.70% coverage, 772/1092 lines covered
