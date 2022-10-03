@@ -41,7 +41,7 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
 
 impl<const MODE: usize> Game<MODE>
 {
-    fn default() -> Result<Self, Error>
+    pub fn default() -> Result<Self, Error>
     {
         let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, false));
@@ -142,8 +142,8 @@ impl<const MODE: usize> Game<MODE>
                 loop {
                     println!("{} must play : {}", &p, &p.hand);
                     println!("Choose a contract, possibilities :");
-                    for (i, c) in contracts.iter().enumerate() {
-                        println!("\t{} : press {}", c, i);
+                    for (contract_index, contract) in contracts.iter().enumerate() {
+                        println!("\t{} (x{}) : press {}", contract.to_string(), contract.multiplier(), contract_index)
                     }
                     let contract_index = read_index();
                     if contract_index < contracts.len() {

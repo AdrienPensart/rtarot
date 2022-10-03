@@ -3,8 +3,7 @@ use std::str::FromStr;
 use crate::errors::TarotErrorKind;
 use crate::handle::Handle;
 
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ValueEnum)]
-#[repr(usize)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum Mode {
     Three,
     #[default]
@@ -22,9 +21,20 @@ impl fmt::Display for Mode {
     }
 }
 
-impl TryFrom<usize> for Mode {
+impl From<usize> for Mode {
+    fn from(value: usize) -> Self {
+        match value {
+            3 => Self::Three,
+            4 => Self::Four,
+            5 => Self::Five,
+            _ => panic!("Unable to convert value to Mode")
+        }
+    }
+}
+
+impl TryFrom<u8> for Mode {
     type Error = TarotErrorKind;
-    fn try_from(value: usize) -> Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             3 => Ok(Self::Three),
             4 => Ok(Self::Four),
@@ -36,7 +46,7 @@ impl TryFrom<usize> for Mode {
 
 impl FromStr for Mode {
     type Err = TarotErrorKind;
-    fn from_str(s: &str) -> Result<Self, TarotErrorKind> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "3" | "three" => Ok(Self::Three),
             "4" | "four" => Ok(Self::Four),

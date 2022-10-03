@@ -7,6 +7,7 @@ extern crate itertools;
 
 use std::error;
 use std::thread;
+use std::str::FromStr;
 use std::num::NonZeroUsize;
 use clap::Parser;
 use strum::IntoEnumIterator;
@@ -36,23 +37,23 @@ use crate::mode::Mode;
 #[clap(author, about, version)]
 struct Opts {
     /// Players mode
-    #[clap(value_enum, default_value_t = mode::Mode::default())]
-    players: mode::Mode,
+    #[arg(value_parser = clap::builder::PossibleValuesParser::new(["3", "4", "5"]), default_value = "4")]
+    players: String,
 
     /// Random playing mode
-    #[clap(short = 'r', long = "random")]
+    #[arg(short = 'r', long = "random")]
     random: bool,
 
     /// Auto playing mode when possible
-    #[clap(short = 'a', long = "auto")]
+    #[arg(short = 'a', long = "auto")]
     auto: bool,
 
     /// Test mode
-    #[clap(short = 't', long = "test")]
+    #[arg(short = 't', long = "test")]
     test: bool,
 
     /// Concurrency in test mode, default is number of cpu on this machine
-    #[clap(short, default_value_t = thread::available_parallelism().unwrap())]
+    #[arg(short, default_value_t = thread::available_parallelism().unwrap())]
     concurrency: NonZeroUsize
 }
 
@@ -76,10 +77,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let _ = child.join();
         }
     } else {
-        match opt.players {
-            Mode::Three => game::Game::<3>::new(opt.random, opt.auto)?.start()?,
-            Mode::Four => game::Game::<4>::new(opt.random, opt.auto)?.start()?,
-            Mode::Five => game::Game::<5>::new(opt.random, opt.auto)?.start()?,
+        let mode = Mode::from_str(&opt.players);
+        match mode {
+            Ok(Mode::Three) => game::Game::<3>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Four) => game::Game::<4>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Five) => game::Game::<5>::new(opt.random, opt.auto)?.start()?,
+            Err(e) => eprintln!("{}", e),
         };
     }
     Ok(())
