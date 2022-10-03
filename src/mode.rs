@@ -6,30 +6,30 @@ use crate::handle::Handle;
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter, clap::ValueEnum)]
 #[repr(usize)]
 pub enum Mode {
-    Three = 3,
+    Three,
     #[default]
-    Four = 4,
-    Five = 5,
+    Four,
+    Five,
 }
 
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Three => write!(f, "{} players, 1 vs 2 (easy)", Mode::Three as usize),
-            Self::Four  => write!(f, "{} players, 1 vs 3 (standard)", Mode::Four as usize),
-            Self::Five  => write!(f, "{} players, 2 vs 3 (call a king)", Mode::Five as usize),
+            Self::Three => write!(f, "{} players, 1 vs 2 (easy)", self.players()),
+            Self::Four  => write!(f, "{} players, 1 vs 3 (standard)", self.players()),
+            Self::Five  => write!(f, "{} players, 2 vs 3 (call a king)", self.players()),
         }
     }
 }
 
-impl From<usize> for Mode {
-    fn from(mode: usize) -> Mode {
-        match mode {
-            3 => Self::Three,
-            4 => Self::Four,
-            5 => Self::Five,
-            // _ => Self::default()
-            _ => panic!("Cannot convert {} to a Mode", mode)
+impl TryFrom<usize> for Mode {
+    type Error = TarotErrorKind;
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            3 => Ok(Self::Three),
+            4 => Ok(Self::Four),
+            5 => Ok(Self::Five),
+            _ => Err(TarotErrorKind::InvalidPlayers)
         }
     }
 }
@@ -47,6 +47,14 @@ impl FromStr for Mode {
 }
 
 impl Mode {
+    pub const fn players(self) -> usize {
+        match self {
+            Self::Three => 3,
+            Self::Four  => 4,
+            Self::Five  => 5,
+        }
+    }
+
     pub const fn default() -> Self {
         Self::Four
     }

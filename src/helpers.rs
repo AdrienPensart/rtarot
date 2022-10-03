@@ -1,4 +1,5 @@
 use std::io;
+use failure::Error;
 
 #[allow(clippy::redundant_closure)]
 pub fn read_index() -> usize {
@@ -18,11 +19,11 @@ pub fn read_index() -> usize {
 //     let _ = stdin.read(&mut [0u8]).unwrap();
 // }
 
-pub fn test_game<const MODE: usize>() {
+pub fn test_game<const MODE: usize>() -> Result<(), Error> {
     use crate::game::Game;
     use crate::errors::TarotErrorKind;
     loop {
-        let mut game: Game<MODE> = Game::new(true, true);
+        let mut game: Game<MODE> = Game::new(true, true)?;
         if let Err(fail) = game.distribute() {
             if let Some(cause) = fail.find_root_cause().downcast_ref::<TarotErrorKind>() {
                if cause == &TarotErrorKind::PetitSec {
@@ -41,7 +42,7 @@ pub fn test_game<const MODE: usize>() {
             assert!(game.play().is_ok());
         }
         assert!(game.count_points().is_ok());
-        break
+        return Ok(())
     }
 }
 

@@ -61,15 +61,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     if opt.test {
         let mut children = vec![];
         for _ in 0..opt.concurrency.get() {
-            children.push(thread::spawn(move || {
+            children.push(thread::spawn(|| {
                 #[allow(clippy::infinite_iter)]
-                Mode::iter().cycle().for_each(|m| {
-                    match m {
-                        Mode::Three => helpers::test_game::<3>(),
-                        Mode::Four => helpers::test_game::<4>(),
-                        Mode::Five => helpers::test_game::<5>(),
+                for mode in Mode::iter().cycle() {
+                    match mode {
+                        Mode::Three => helpers::test_game::<3>().unwrap(),
+                        Mode::Four => helpers::test_game::<4>().unwrap(),
+                        Mode::Five => helpers::test_game::<5>().unwrap(),
                     }
-                });
+                }
             }));
         }
         for child in children {
@@ -77,9 +77,9 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         }
     } else {
         match opt.players {
-            Mode::Three => game::Game::<3>::new(opt.random, opt.auto).start()?,
-            Mode::Four => game::Game::<4>::new(opt.random, opt.auto).start()?,
-            Mode::Five => game::Game::<5>::new(opt.random, opt.auto).start()?,
+            Mode::Three => game::Game::<3>::new(opt.random, opt.auto)?.start()?,
+            Mode::Four => game::Game::<4>::new(opt.random, opt.auto)?.start()?,
+            Mode::Five => game::Game::<5>::new(opt.random, opt.auto)?.start()?,
         };
     }
     Ok(())

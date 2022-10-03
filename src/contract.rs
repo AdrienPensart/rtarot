@@ -4,11 +4,11 @@ use crate::errors::TarotErrorKind;
 
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, EnumIter)]
 pub enum Contract {
-    Pass = 0,
-    Petite = 1,
-    Garde = 2,
-    GardeSans = 4,
-    GardeContre = 6,
+    Pass,
+    Petite,
+    Garde,
+    GardeSans,
+    GardeContre,
 }
 
 impl fmt::Display for Contract {
@@ -19,6 +19,18 @@ impl fmt::Display for Contract {
             Self::Garde        => write!(f, "Garde (x2)"),
             Self::GardeSans    => write!(f, "Garde Sans (x4)"),
             Self::GardeContre  => write!(f, "Garde Contre (x6)"),
+        }
+    }
+}
+
+impl Contract {
+    pub const fn multiplier(self) -> f64 {
+        match self {
+            Self::Pass         => 0.0,
+            Self::Petite       => 1.0,
+            Self::Garde        => 2.0,
+            Self::GardeSans    => 4.0,
+            Self::GardeContre  => 6.0,
         }
     }
 }

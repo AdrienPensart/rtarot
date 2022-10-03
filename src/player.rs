@@ -201,10 +201,10 @@ impl Player
         self.hand.len() == 1
     }
     pub fn owe_card(&self) -> bool {
-        self.owned.has_fool() && self.owned.len() != 1 && (self.owned.len() % self.mode as usize) == 1
+        self.owned.has_fool() && self.owned.len() != 1 && (self.owned.len() % self.mode.players()) == 1
     }
     pub fn missing_card(&self) -> bool {
-        !self.owned.has_fool() && self.owned.len() != 1 && (self.owned.len() % self.mode as usize) == (self.mode as usize - 1)
+        !self.owned.has_fool() && self.owned.len() != 1 && (self.owned.len() % self.mode.players()) == (self.mode.players() - 1)
     }
     pub fn give_low(&mut self) -> Option<Card> {
         self.owned.give_low()
@@ -232,10 +232,10 @@ impl Player
                 println!("Taker contract: {}", &contract);
                 if points >= contract_points {
                     println!("Contract total: {}", points - contract_points + BASE_CONTRACT_POINTS);
-                    Ok((points - contract_points + BASE_CONTRACT_POINTS) * f64::from(contract as u8))
+                    Ok((points - contract_points + BASE_CONTRACT_POINTS) * contract.multiplier())
                 } else {
                     println!("Contract total: {}", points - contract_points - BASE_CONTRACT_POINTS);
-                    Ok((points - contract_points - BASE_CONTRACT_POINTS) * f64::from(contract as u8))
+                    Ok((points - contract_points - BASE_CONTRACT_POINTS) * contract.multiplier())
                 }
             }
         }

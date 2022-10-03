@@ -39,12 +39,13 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
     }
 }
 
-impl<const MODE: usize> Default for Game<MODE> {
-    fn default() -> Self
+impl<const MODE: usize> Game<MODE>
+{
+    fn default() -> Result<Self, Error>
     {
-        let mode: Mode = MODE.into();
+        let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, false));
-        Game {
+        Ok(Game {
             auto: false,
             petit_au_bout: None,
             defense_cards: 0,
@@ -53,21 +54,17 @@ impl<const MODE: usize> Default for Game<MODE> {
             deck: Deck::build_deck(),
             players,
             mode,
-        }
+        })
     }
-}
-
-impl<const MODE: usize> Game<MODE>
-{
-    pub fn new(random: bool, auto: bool) -> Game<MODE> {
-        let mode: Mode = MODE.into();
+    pub fn new(random: bool, auto: bool) -> Result<Self, Error> {
+        let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, random));
-        Game {
+        Ok(Game {
             auto,
             players,
             mode,
-            ..Game::default()
-        }
+            ..Self::default()?
+        })
     }
     pub fn start(mut self) -> Result<(), Error> {
         loop {
@@ -159,7 +156,10 @@ impl<const MODE: usize> Game<MODE>
             contracts = match p.contract {
                 Some(contract) => {
                     println!("Player {} has chosen contract {}", p.name, contract);
-                    contracts.into_iter().filter(|other_contract| other_contract == &Contract::Pass || *other_contract as usize > contract as usize).collect()
+                    contracts
+                        .into_iter()
+                        .filter(|other_contract| other_contract == &Contract::Pass || other_contract.multiplier() > contract.multiplier())
+                        .collect()
                 },
                 _ => {
                     println!("A contract must be available for everyone!");
@@ -347,7 +347,7 @@ impl<const MODE: usize> Game<MODE>
         if cards.has_petit() &&
             (self.players[master_player].last_turn() ||
              (self.players[master_player].before_last_turn() &&
-              ((self.attack_cards == MAX_CARDS - self.mode.dog_size() - self.mode as usize ) || (self.defense_cards == MAX_CARDS - self.mode.dog_size() - self.mode as usize)))) {
+              ((self.attack_cards == MAX_CARDS - self.mode.dog_size() - self.mode.players() ) || (self.defense_cards == MAX_CARDS - self.mode.dog_size() - self.mode.players())))) {
             println!("{} has Petit in last turn (Petit au bout) : +10 points", self.players[master_player]);
             self.petit_au_bout = self.players[master_player].team.clone();
         }
@@ -434,14 +434,15 @@ impl<const MODE: usize> Game<MODE>
             println!("Taker contract points: {}", &contract_points);
 
             let petit_au_bout_bonus = if let Some(contract) = self.players[taker_index].contract {
+                let points_petit_au_bout = 10.0 * contract.multiplier();
                 match self.petit_au_bout {
                     Some(Team::Defense) => {
-                        println!("Petit au bout for defense: {}", -10.0 * f64::from(contract as u8));
-                        -10.0 * f64::from(contract as u8)
+                        println!("Petit au bout for defense: {}", -points_petit_au_bout);
+                        -points_petit_au_bout
                     },
                     Some(Team::Attack) => {
-                        println!("Petit au bout for attack: {}", 10.0 * f64::from(contract as u8));
-                        10.0 * f64::from(contract as u8)
+                        println!("Petit au bout for attack: {}", points_petit_au_bout);
+                        points_petit_au_bout
                     },
                     None => 0.0
                 }
@@ -491,7 +492,7 @@ impl<const MODE: usize> Game<MODE>
 #[test]
 fn game_tests() {
     use crate::mode::*;
-    test_game::<{ Mode::Three as usize }>();
-    test_game::<{ Mode::Four as usize }>();
-    test_game::<{ Mode::Five as usize }>();
+    test_game::<{Mode::Three.players()}>().unwrap();
+    test_game::<{Mode::Four.players()}>().unwrap();
+    test_game::<{Mode::Five.players()}>().unwrap();
 }
