@@ -1,5 +1,6 @@
 use std::fmt;
 use std::str::FromStr;
+use strum::EnumIter;
 use crate::errors::TarotErrorKind;
 use crate::handle::Handle;
 
@@ -21,20 +22,20 @@ impl fmt::Display for Mode {
     }
 }
 
-impl From<usize> for Mode {
-    fn from(value: usize) -> Self {
-        match value {
-            3 => Self::Three,
-            4 => Self::Four,
-            5 => Self::Five,
-            _ => panic!("Unable to convert value to Mode")
-        }
-    }
-}
+// impl From<usize> for Mode {
+//     fn from(value: usize) -> Self {
+//         match value {
+//             3 => Self::Three,
+//             4 => Self::Four,
+//             5 => Self::Five,
+//             _ => panic!("Unable to convert value to Mode")
+//         }
+//     }
+// }
 
-impl TryFrom<u8> for Mode {
+impl TryFrom<usize> for Mode {
     type Error = TarotErrorKind;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
             3 => Ok(Self::Three),
             4 => Ok(Self::Four),

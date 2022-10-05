@@ -1,9 +1,4 @@
-extern crate strum;
-extern crate rand;
-extern crate itertools;
-#[macro_use] extern crate log;
-#[macro_use] extern crate strum_macros;
-#[macro_use] extern crate failure;
+// #[macro_use] extern crate failure;
 
 use std::error;
 use std::thread;
@@ -63,12 +58,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let mut children = vec![];
         for _ in 0..opt.concurrency.get() {
             children.push(thread::spawn(|| {
-                #[allow(clippy::infinite_iter)]
                 for mode in Mode::iter().cycle() {
                     match mode {
-                        Mode::Three => helpers::test_game::<3>().unwrap(),
-                        Mode::Four => helpers::test_game::<4>().unwrap(),
-                        Mode::Five => helpers::test_game::<5>().unwrap(),
+                        Mode::Three => helpers::test_game::<{Mode::Three.players()}>().unwrap(),
+                        Mode::Four => helpers::test_game::<{Mode::Four.players()}>().unwrap(),
+                        Mode::Five => helpers::test_game::<{Mode::Five.players()}>().unwrap(),
                     }
                 }
             }));
@@ -79,9 +73,9 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     } else {
         let mode = Mode::from_str(&opt.players);
         match mode {
-            Ok(Mode::Three) => game::Game::<3>::new(opt.random, opt.auto)?.start()?,
-            Ok(Mode::Four) => game::Game::<4>::new(opt.random, opt.auto)?.start()?,
-            Ok(Mode::Five) => game::Game::<5>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Three) => game::Game::<{Mode::Three.players()}>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Four) => game::Game::<{Mode::Four.players()}>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Five) => game::Game::<{Mode::Five.players()}>::new(opt.random, opt.auto)?.start()?,
             Err(e) => eprintln!("{}", e),
         };
     }

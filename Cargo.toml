@@ -9,11 +9,11 @@ edition = "2021"
 [dependencies]
 log = "0.4"
 clap = { version = "4.0.4", features = ["derive"] }
-failure = "0.1.5"
+# failure = "0.1.5"
+thiserror = "1.0"
 rand = "0.8"
 itertools = "0.10"
-strum = "0.24"
-strum_macros = "0.24"
+strum = { version = "0.24", features = ["derive"] }
 indoc = "1.0"
 regex = "1"
 colored = "2.0.0"

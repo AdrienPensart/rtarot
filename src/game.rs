@@ -1,13 +1,13 @@
-use failure::Error;
 use std::fmt;
 use rand::Rng;
 use strum::IntoEnumIterator;
 use array_init::array_init;
+use log::debug;
 use crate::deck::Deck;
 use crate::mode::Mode;
 use crate::contract::Contract;
 use crate::player::Player;
-use crate::errors::*;
+use crate::errors::TarotErrorKind;
 use crate::turn::Turn;
 use crate::card::Card;
 use crate::role::Role;
@@ -39,7 +39,7 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
 
 impl<const MODE: usize> Game<MODE>
 {
-    pub fn default() -> Result<Self, Error>
+    pub fn default() -> Result<Self, TarotErrorKind>
     {
         let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, false));
@@ -53,7 +53,7 @@ impl<const MODE: usize> Game<MODE>
             mode,
         })
     }
-    pub fn new(random: bool, auto: bool) -> Result<Self, Error> {
+    pub fn new(random: bool, auto: bool) -> Result<Self, TarotErrorKind> {
         let mode: Mode = MODE.try_into()?;
         let players: [Player; MODE] = array_init(|i| Player::new(mode.player_name(i).to_string(), mode, random));
         Ok(Self {
@@ -63,7 +63,7 @@ impl<const MODE: usize> Game<MODE>
             ..Self::default()?
         })
     }
-    pub fn start(mut self) -> Result<(), Error> {
+    pub fn start(mut self) -> Result<(), TarotErrorKind> {
         loop {
             self.distribute()?;
             self.bidding()?;
@@ -87,7 +87,7 @@ impl<const MODE: usize> Game<MODE>
         debug!("Current points sum : {}", sum);
         assert!(sum == 0.0)
     }
-    pub fn distribute(&mut self) -> Result<(), Error> {
+    pub fn distribute(&mut self) -> Result<(), TarotErrorKind> {
         let mut new_deck = Deck::random();
         self.dog = Deck::empty();
         for player in self.players.iter_mut() {
@@ -105,13 +105,13 @@ impl<const MODE: usize> Game<MODE>
         for player in self.players.iter_mut() {
             if player.hand.petit_sec() {
                 // RULE: PetitSec cancel the game
-                return Err(TarotErrorKind::PetitSec.into())
+                return Err(TarotErrorKind::PetitSec)
             }
             player.hand.sort();
         }
         Ok(())
     }
-    pub fn bidding(&mut self) -> Result<(), Error> {
+    pub fn bidding(&mut self) -> Result<(), TarotErrorKind> {
         let mut contracts: Vec<Contract> = Contract::iter().collect();
         let mut slam_index : Option<usize> = None;
         for (i, p) in self.players.iter_mut().enumerate() {
@@ -148,7 +148,7 @@ impl<const MODE: usize> Game<MODE>
                 },
                 _ => {
                     println!("A contract must be available for everyone!");
-                    return Err(TarotErrorKind::InvalidCase.into())
+                    return Err(TarotErrorKind::InvalidCase)
                 }
             };
             if p.contract != Some(Contract::Pass) && p.announce_slam() {
@@ -167,9 +167,9 @@ impl<const MODE: usize> Game<MODE>
     pub fn finished(&self) -> bool {
         self.players.iter().all(|p| p.hand.is_empty())
     }
-    pub fn discard(&mut self) -> Result<(), Error> {
+    pub fn discard(&mut self) -> Result<(), TarotErrorKind> {
         if self.passed() {
-            return Err(TarotErrorKind::NoTaker.into());
+            return Err(TarotErrorKind::NoTaker);
         }
 
         let mut callee: Option<Card> = None;
@@ -180,7 +180,7 @@ impl<const MODE: usize> Game<MODE>
             }
             taker.contract
         } else {
-            return Err(TarotErrorKind::NoTaker.into());
+            return Err(TarotErrorKind::NoTaker);
         };
 
         for p in &mut self.players {
@@ -237,7 +237,7 @@ impl<const MODE: usize> Game<MODE>
         }
         Ok(())
     }
-    pub fn play(&mut self) -> Result<(), Error> {
+    pub fn play(&mut self) -> Result<(), TarotErrorKind> {
         let mut turn = Turn::default();
         let mut master_player: usize = 0;
         let mut master_player_name: String = self.players[master_player].name.clone();
@@ -250,7 +250,7 @@ impl<const MODE: usize> Game<MODE>
             let possible_choices = &current_player.choices(&turn)?;
             if possible_choices.is_empty() {
                 println!("No possible choices available, invalid case.");
-                return Err(TarotErrorKind::InvalidCase.into())
+                return Err(TarotErrorKind::InvalidCase)
             }
             for &possible_choice in possible_choices {
                 println!("\t{0: <4} : press {1}", current_player.hand.0[possible_choice], possible_choice);
@@ -301,7 +301,7 @@ impl<const MODE: usize> Game<MODE>
                             }
                         },
                         _ => {
-                            return Err(TarotErrorKind::NoTeam.into())
+                            return Err(TarotErrorKind::NoTeam)
                         }
                     }
                 }
@@ -339,15 +339,15 @@ impl<const MODE: usize> Game<MODE>
         match self.players[master_player].team {
             Some(Team::Attack) => self.attack_cards += cards.len(),
             Some(Team::Defense) => self.defense_cards += cards.len(),
-            _ => return Err(TarotErrorKind::NoTeam.into())
+            _ => return Err(TarotErrorKind::NoTeam)
         }
         self.players[master_player].owned.append(&mut cards);
         self.players.rotate_left(master_player);
         Ok(())
     }
-    pub fn count_points(&mut self) -> Result<(), Error> {
+    pub fn count_points(&mut self) -> Result<(), TarotErrorKind> {
         if self.passed() {
-            return Err(TarotErrorKind::NoTaker.into());
+            return Err(TarotErrorKind::NoTaker);
         }
         let mut taker_index : Option<usize> = None;
         let mut ally_index : Option<usize> = None;
@@ -378,7 +378,7 @@ impl<const MODE: usize> Game<MODE>
                 Some(Role::Defenser) => {
                     defense.push(i)
                 }
-                None => return Err(TarotErrorKind::InvalidCase.into()),
+                None => return Err(TarotErrorKind::InvalidCase),
             }
         }
         match self.mode {
@@ -408,7 +408,7 @@ impl<const MODE: usize> Game<MODE>
                 self.players[taker_index].owned.append(&mut ally_cards)
             } else {
                 println!("Cant merge cards of ally if no taker");
-                return Err(TarotErrorKind::NoTaker.into());
+                return Err(TarotErrorKind::NoTaker);
             }
         }
 
@@ -432,7 +432,7 @@ impl<const MODE: usize> Game<MODE>
                     None => 0.0
                 }
             } else {
-                return Err(TarotErrorKind::NoContract.into())
+                return Err(TarotErrorKind::NoContract)
             };
 
             let ratio = match self.mode {
@@ -467,7 +467,7 @@ impl<const MODE: usize> Game<MODE>
             //}
         } else {
             println!("Cant count points if no taker");
-            return Err(TarotErrorKind::NoTaker.into());
+            return Err(TarotErrorKind::NoTaker);
         }
         self.is_consistent();
         Ok(())

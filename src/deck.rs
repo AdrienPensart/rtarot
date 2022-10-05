@@ -6,7 +6,6 @@ use strum::IntoEnumIterator;
 use itertools::Itertools;
 use rand::thread_rng;
 use rand::seq::SliceRandom;
-use failure::Error;
 use crate::card::Card;
 use crate::color::Color;
 use crate::color_value::ColorValue;
@@ -86,13 +85,13 @@ impl Deck {
         // RULE: deck is a chelem if all cards are there or fool is missing
         self.points() == MAX_POINTS || self.points() == MAX_POINTS_WITHOUT_FOOL
     }
-    pub fn points_for_oudlers(&self) -> Result<f64, Error> {
+    pub fn points_for_oudlers(&self) -> Result<f64, TarotErrorKind> {
         match self.count_oudlers() {
             0 => Ok(56.0),
             1 => Ok(51.0),
             2 => Ok(41.0),
             3 => Ok(36.0),
-            _ => Err(TarotErrorKind::InvalidCase.into()),
+            _ => Err(TarotErrorKind::InvalidCase),
         }
     }
     pub fn len(&self) -> usize {

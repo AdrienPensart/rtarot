@@ -1,5 +1,5 @@
 use std::io;
-use failure::Error;
+use crate::errors::TarotErrorKind;
 
 #[allow(clippy::redundant_closure)]
 pub fn read_index() -> usize {
@@ -19,18 +19,15 @@ pub fn read_index() -> usize {
 //     let _ = stdin.read(&mut [0u8]).unwrap();
 // }
 
-pub fn test_game<const MODE: usize>() -> Result<(), Error> {
+pub fn test_game<const MODE: usize>() -> Result<(), TarotErrorKind> {
     use crate::game::Game;
-    use crate::errors::TarotErrorKind;
     loop {
         let mut game: Game<MODE> = Game::new(true, true)?;
         if let Err(fail) = game.distribute() {
-            if let Some(cause) = fail.find_root_cause().downcast_ref::<TarotErrorKind>() {
-               if cause == &TarotErrorKind::PetitSec {
-                   continue
-               } else {
-                   panic!("Error is not PetitSec")
-               }
+            if fail == TarotErrorKind::PetitSec {
+                continue
+            } else {
+                panic!("Error is not PetitSec")
             }
         }
         assert!(game.bidding().is_ok());

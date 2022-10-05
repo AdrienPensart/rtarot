@@ -1,3 +1,4 @@
+use strum::{Display, EnumIter};
 use crate::traits::Points;
 
 #[derive(Default, Display, Eq, PartialEq, Debug, Clone, EnumIter)]

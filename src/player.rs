@@ -1,8 +1,7 @@
 use std::fmt;
 use rand::Rng;
-use failure::Error;
 use strum::IntoEnumIterator;
-use crate::itertools::Itertools;
+use itertools::Itertools;
 
 use crate::traits::*;
 use crate::contract::Contract;
@@ -11,7 +10,7 @@ use crate::color::Color;
 use crate::color_value::ColorValue;
 use crate::trump_value::TrumpValue;
 use crate::card::Card;
-use crate::errors::*;
+use crate::errors::TarotErrorKind;
 use crate::team::Team;
 use crate::role::Role;
 use crate::mode::Mode;
@@ -226,7 +225,7 @@ impl Player
     pub fn count_oudlers(&self) -> usize {
         self.owned.count_oudlers()
     }
-    pub fn contract_points(&self) -> Result<f64, Error> {
+    pub fn contract_points(&self) -> Result<f64, TarotErrorKind> {
         let points = self.points();
         let contract_points = self.owned.points_for_oudlers()?;
         println!("Taker owned points: {}", &points);
@@ -235,7 +234,7 @@ impl Player
         println!("Contract difference: {}", points - contract_points);
 
         match self.contract {
-            Some(Contract::Pass) | None => Err(TarotErrorKind::NoContract.into()),
+            Some(Contract::Pass) | None => Err(TarotErrorKind::NoContract),
             Some(contract) => {
                 println!("Taker contract: {}", &contract);
                 if points >= contract_points {
@@ -255,9 +254,9 @@ impl Player
             Mode::Five => self.hand.len() == 15,
         }
     }
-    pub fn call(&self) -> Result<Card, Error> {
+    pub fn call(&self) -> Result<Card, TarotErrorKind> {
         if self.mode != Mode::Five {
-            return Err(TarotErrorKind::InvalidMode.into());
+            return Err(TarotErrorKind::InvalidMode);
         }
         let mut value_callable : Vec<ColorValue> = vec![ColorValue::King];
         if self.hand.count_tete(ColorValue::King) == 4 {
@@ -268,7 +267,7 @@ impl Player
                     value_callable.push(ColorValue::Jack);
                     if self.hand.count_tete(ColorValue::Jack) == 4 {
                         println!("Case too rare, taker has all kings, all queens and all knights");
-                        return Err(TarotErrorKind::InvalidCase.into())
+                        return Err(TarotErrorKind::InvalidCase)
                     }
                 }
             }
@@ -324,7 +323,7 @@ impl Player
         }
         self.hand.sort();
     }
-    pub fn choices(&self, turn: &Turn) -> Result<Vec<usize>, Error> {
+    pub fn choices(&self, turn: &Turn) -> Result<Vec<usize>, TarotErrorKind> {
         let mut and_fool : Option<usize> = None;
         let mut trumps = Vec::new();
         let mut trumps_less = Vec::new();
@@ -418,19 +417,19 @@ impl Player
             },
             (Some(Card::Normal(_)), None) => {
                 println!("There cannot be a called color and no master card, impossible case!");
-                return Err(TarotErrorKind::InvalidCase.into())
+                return Err(TarotErrorKind::InvalidCase)
             }
             (Some(Card::Trump(_)), Some(Card::Normal(_))) => {
                 println!("There cannot be a called trump and a master color, impossible case!");
-                return Err(TarotErrorKind::InvalidCase.into())
+                return Err(TarotErrorKind::InvalidCase)
             }
             (Some(Card::Trump(_)), None) => {
                 println!("There cannot be a called trump and not master, impossible case!");
-                return Err(TarotErrorKind::InvalidCase.into())
+                return Err(TarotErrorKind::InvalidCase)
             }
             (None, Some(_)) => {
                 println!("There cannot be no called color and a master, impossible case!");
-                return Err(TarotErrorKind::InvalidCase.into())
+                return Err(TarotErrorKind::InvalidCase)
             },
             // RULE: first player can put the callee but no any other card in the same color
             (None, None) => match (self.is_first_turn(), self.mode) {

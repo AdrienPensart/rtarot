@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 use colored::{ColoredString, Colorize};
+use strum::EnumIter;
 use crate::errors::TarotErrorKind;
 use crate::traits::{Symbol, Representation, Colored};
 

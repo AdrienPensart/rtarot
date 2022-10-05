@@ -1,6 +1,7 @@
 use std::fmt;
 use indoc::indoc;
 use colored::{ColoredString, Colorize};
+use strum::EnumIter;
 use crate::traits::{Symbol, Representation, Colored, Discardable, Points};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]

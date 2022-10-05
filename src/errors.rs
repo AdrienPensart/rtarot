@@ -1,23 +1,25 @@
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
+use thiserror::Error;
+
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum TarotErrorKind {
-    #[fail(display = "A deck contains only one outsider: the petit.")]
+    #[error("A deck contains only one outsider: the petit.")]
     PetitSec,
-    #[fail(display = "Card is invalid")]
+    #[error("Card is invalid")]
     InvalidCard,
-    #[fail(display = "Invalid number of players")]
+    #[error("Invalid number of players")]
     InvalidPlayers,
-    #[fail(display = "No contract")]
+    #[error("No contract")]
     NoContract,
-    #[fail(display = "Invalid mode")]
+    #[error("Invalid mode")]
     InvalidMode,
-    #[fail(display = "Invalid contract")]
+    #[error("Invalid contract")]
     InvalidContract,
-    #[fail(display = "Invalid case")]
+    #[error("Invalid case")]
     InvalidCase,
-    #[fail(display = "Invalid color")]
+    #[error("Invalid color")]
     InvalidColor,
-    #[fail(display = "No taker or auctions not finished")]
+    #[error("No taker or auctions not finished")]
     NoTaker,
-    #[fail(display = "A player shoud belongs to a team")]
+    #[error("A player shoud belongs to a team")]
     NoTeam,
 }

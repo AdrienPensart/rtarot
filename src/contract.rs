@@ -1,3 +1,6 @@
+use strum::{Display, EnumIter};
+
+
 #[derive(Default, Display, Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, EnumIter)]
 pub enum Contract {
     #[default]
