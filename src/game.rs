@@ -282,8 +282,7 @@ impl<const MODE: usize> Game<MODE>
                 if !current_player.last_turn() {
                     // RULE: the fool is always preserved to his owner
                     current_player.owned.push(card);
-                    // we must mark as the fool was played
-                    turn.fool_played = true;
+                    turn.put(card);
                 } else {
                     // RULE: exception in the last turn, the fool is in game and can be lost
                     turn.put(card);

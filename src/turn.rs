@@ -6,13 +6,12 @@ use crate::traits::{Symbol, Representation};
 #[derive(Debug, Default)]
 pub struct Turn {
     pub master_index: Option<usize>,
-    pub fool_played: bool,
     cards: Deck,
 }
 
 impl Turn {
     pub fn take(&mut self) -> Deck {
-        Deck(self.cards.0.drain(..).collect())
+        Deck(self.cards.0.drain(..).filter(|card| card.is_fool()).collect())
     }
     pub fn put(&mut self, card: Card) {
         self.cards.push(card);
