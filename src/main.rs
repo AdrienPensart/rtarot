@@ -1,32 +1,32 @@
-// #[macro_use] extern crate failure;
-
-use std::error;
-use std::thread;
-use std::str::FromStr;
-use std::num::NonZeroUsize;
 use clap::Parser;
+use std::error;
+use std::num::NonZeroUsize;
+use std::str::FromStr;
+use std::thread;
 use strum::IntoEnumIterator;
 
-pub mod helpers;
-pub mod traits;
-pub mod constants;
-pub mod errors;
-pub mod color;
-pub mod color_value;
-pub mod trump_value;
 pub mod card;
-pub mod deck;
-pub mod normal;
-pub mod player;
-pub mod role;
-pub mod team;
-pub mod turn;
-pub mod handle;
-pub mod mode;
 pub mod contract;
+pub mod deck;
+pub mod errors;
 pub mod game;
+pub mod handle;
+pub mod helpers;
+pub mod mode;
+pub mod normal;
+pub mod options;
+pub mod player;
+pub mod points;
+pub mod role;
+pub mod suit;
+pub mod suit_value;
+pub mod team;
+pub mod traits;
+pub mod trump;
+pub mod turn;
 
 use crate::mode::Mode;
+use crate::options::Options;
 
 #[derive(Parser, Debug)]
 #[clap(author, about, version)]
@@ -47,35 +47,63 @@ struct Opts {
     #[arg(short = 't', long = "test")]
     test: bool,
 
+    /// Quiet mode
+    #[arg(short = 'q', long = "quiet")]
+    quiet: bool,
+
+    /// Forbid slam
+    #[arg(long = "no-slam")]
+    no_slam: bool,
+
     /// Concurrency in test mode, default is number of cpu on this machine
     #[arg(short, default_value_t = thread::available_parallelism().unwrap())]
-    concurrency: NonZeroUsize
+    concurrency: NonZeroUsize,
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let opt = Opts::parse();
+    let options = Options {
+        random: opt.random,
+        auto: opt.auto,
+        quiet: opt.quiet,
+        no_slam: opt.no_slam,
+    };
     if opt.test {
         let mut children = vec![];
-        for _ in 0..opt.concurrency.get() {
-            children.push(thread::spawn(|| {
-                for mode in Mode::iter().cycle() {
-                    match mode {
-                        Mode::Three => helpers::test_game::<{Mode::Three.players()}>().unwrap(),
-                        Mode::Four => helpers::test_game::<{Mode::Four.players()}>().unwrap(),
-                        Mode::Five => helpers::test_game::<{Mode::Five.players()}>().unwrap(),
-                    }
+        if opt.concurrency == NonZeroUsize::new(1).unwrap() {
+            for mode in Mode::iter().cycle() {
+                match mode {
+                    Mode::Three => helpers::test_game::<{ Mode::Three.players() }>(options)?,
+                    Mode::Four => helpers::test_game::<{ Mode::Four.players() }>(options)?,
+                    Mode::Five => helpers::test_game::<{ Mode::Five.players() }>(options)?,
                 }
-            }));
-        }
-        for child in children {
-            let _ = child.join();
+            }
+        } else {
+            for _ in 0..opt.concurrency.get() {
+                children.push(thread::spawn(move || {
+                    println!("Spawned thread {:?}", thread::current());
+                    for mode in Mode::iter().cycle() {
+                        let result = match mode {
+                            Mode::Three => helpers::test_game::<{ Mode::Three.players() }>(options),
+                            Mode::Four => helpers::test_game::<{ Mode::Four.players() }>(options),
+                            Mode::Five => helpers::test_game::<{ Mode::Five.players() }>(options),
+                        };
+                        if let Err(e) = result {
+                            eprintln!("{:?} : {}", thread::current(), e);
+                        }
+                    }
+                }));
+            }
+            for child in children {
+                let _ = child.join();
+            }
         }
     } else {
         let mode = Mode::from_str(&opt.players);
         match mode {
-            Ok(Mode::Three) => game::Game::<{Mode::Three.players()}>::new(opt.random, opt.auto)?.start()?,
-            Ok(Mode::Four) => game::Game::<{Mode::Four.players()}>::new(opt.random, opt.auto)?.start()?,
-            Ok(Mode::Five) => game::Game::<{Mode::Five.players()}>::new(opt.random, opt.auto)?.start()?,
+            Ok(Mode::Three) => game::Game::<{ Mode::Three.players() }>::new(options)?.start()?,
+            Ok(Mode::Four) => game::Game::<{ Mode::Four.players() }>::new(options)?.start()?,
+            Ok(Mode::Five) => game::Game::<{ Mode::Five.players() }>::new(options)?.start()?,
             Err(e) => eprintln!("{}", e),
         };
     }

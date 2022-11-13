@@ -1,11 +1,13 @@
-use std::fmt;
+use crate::points::HasPoints;
+use crate::traits::{Discardable, Representation};
 use colored::{ColoredString, Colorize};
 use indoc::indoc;
+use ordered_float::OrderedFloat;
+use std::fmt;
 use strum::EnumIter;
-use crate::traits::{Discardable, Points, Representation};
 
 #[derive(Hash, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum ColorValue {
+pub enum SuitValue {
     _1 = 1,
     _2 = 2,
     _3 = 3,
@@ -22,7 +24,7 @@ pub enum ColorValue {
     King = 14,
 }
 
-impl fmt::Display for ColorValue {
+impl fmt::Display for SuitValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Jack => write!(f, "V"),
@@ -34,7 +36,7 @@ impl fmt::Display for ColorValue {
     }
 }
 
-impl Discardable for ColorValue {
+impl Discardable for SuitValue {
     fn discardable(&self) -> bool {
         // RULE: cant discard kings
         self != &Self::King
@@ -45,22 +47,23 @@ impl Discardable for ColorValue {
     }
 }
 
-impl Points for ColorValue {
-    fn points(&self) -> f64 {
-        match self {
+impl HasPoints for SuitValue {
+    fn points(&self) -> OrderedFloat<f64> {
+        let points = match self {
             Self::Jack => 1.5,
             Self::Knight => 2.5,
             Self::Queen => 3.5,
             Self::King => 4.5,
-            _  => 0.5
-        }
+            _ => 0.5,
+        };
+        OrderedFloat(points)
     }
 }
 
-impl Representation for ColorValue {
+impl Representation for SuitValue {
     fn repr(&self) -> ColoredString {
         let base = match self {
-            Self::_1 => indoc!{r#"
+            Self::_1 => indoc! {r#"
             ****************
             *     __       *
             *    /  |      *
@@ -70,7 +73,7 @@ impl Representation for ColorValue {
             *   |_____|    *
             *              *
             ****************"#},
-            Self::_2 => indoc!{r#"
+            Self::_2 => indoc! {r#"
             ****************
             *    _____     *
             *   / ___ `.   *
@@ -80,7 +83,7 @@ impl Representation for ColorValue {
             *  |_______|   *
             *              *
             ****************"#},
-            Self::_3 => indoc!{r#"
+            Self::_3 => indoc! {r#"
             ****************
             *    ______    *
             *   / ____ `.  *
@@ -90,7 +93,7 @@ impl Representation for ColorValue {
             *   \______.'  *
             *              *
             ****************"#},
-            Self::_4 => indoc!{r#"
+            Self::_4 => indoc! {r#"
             ****************
             *   _    _     *
             *  | |  | |    *
@@ -100,7 +103,7 @@ impl Representation for ColorValue {
             *     |_____|  *
             *              *
             ****************"#},
-            Self::_5 => indoc!{r#"
+            Self::_5 => indoc! {r#"
             ****************
             *   _______    *
             *  |  _____|   *
@@ -110,7 +113,7 @@ impl Representation for ColorValue {
             *   \______.'  *
             *              *
             ****************"#},
-            Self::_6 => indoc!{r#"
+            Self::_6 => indoc! {r#"
             ****************
             *    ______    *
             *  .' ____ \   *
@@ -120,7 +123,7 @@ impl Representation for ColorValue {
             *  '.______.'  *
             *              *
             ****************"#},
-            Self::_7 => indoc!{r#"
+            Self::_7 => indoc! {r#"
             ****************
             *    _______   *
             *   |  ___  |  *
@@ -130,7 +133,7 @@ impl Representation for ColorValue {
             *     /_/      *
             *              *
             ****************"#},
-            Self::_8 => indoc!{r#"
+            Self::_8 => indoc! {r#"
             ****************
             *     ____     *
             *   .' __ '.   *
@@ -140,7 +143,7 @@ impl Representation for ColorValue {
             *  `.______.'  *
             *              *
             ****************"#},
-            Self::_9 => indoc!{r#"
+            Self::_9 => indoc! {r#"
             ****************
             *    ______    *
             *  .' ____ '.  *
@@ -150,7 +153,7 @@ impl Representation for ColorValue {
             *   \______,'  *
             *              *
             ****************"#},
-            Self::_10 => indoc!{r#"
+            Self::_10 => indoc! {r#"
             ****************
             * __      __   *
             */  |   .'  '. *
@@ -160,7 +163,7 @@ impl Representation for ColorValue {
             *_____| '.__.' *
             *              *
             ****************"#},
-            Self::Jack => indoc!{r#"
+            Self::Jack => indoc! {r#"
             ****************
             *     _____    *
             *    |_   _|   *
@@ -170,7 +173,7 @@ impl Representation for ColorValue {
             *  `.___.'     *
             *              *
             ****************"#},
-            Self::Knight => indoc!{r#"
+            Self::Knight => indoc! {r#"
             ****************
             *     ______   *
             *   .' ___  |  *
@@ -180,7 +183,7 @@ impl Representation for ColorValue {
             *   `._____.'  *
             *              *
             ****************"#},
-            Self::Queen => indoc!{r#"
+            Self::Queen => indoc! {r#"
             ****************
             *    ___       *
             *  .'   '.     *
@@ -190,7 +193,7 @@ impl Representation for ColorValue {
             *  `.___.\__|  *
             *              *
             ****************"#},
-            Self::King => indoc!{r#"
+            Self::King => indoc! {r#"
             ****************
             *  ___  ____   *
             * |_  ||_  _|  *

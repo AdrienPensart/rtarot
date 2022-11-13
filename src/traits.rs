@@ -1,9 +1,5 @@
 use colored::ColoredString;
 
-pub trait Points {
-    fn points(&self) -> f64;
-}
-
 pub trait Power {
     fn power(&self) -> usize;
 }

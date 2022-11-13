@@ -1,7 +1,7 @@
-use std::fmt;
-use crate::deck::Deck;
 use crate::card::Card;
-use crate::traits::{Symbol, Representation};
+use crate::deck::Deck;
+use crate::traits::{Representation, Symbol};
+use std::fmt;
 
 #[derive(Debug, Default)]
 pub struct Turn {
@@ -10,8 +10,14 @@ pub struct Turn {
 }
 
 impl Turn {
-    pub fn take(&mut self) -> Deck {
-        Deck(self.cards.0.drain(..).filter(|card| card.is_fool()).collect())
+    pub fn take(mut self) -> Deck {
+        Deck(
+            self.cards
+                .0
+                .drain(..)
+                .filter(|card| card.is_fool())
+                .collect(),
+        )
     }
     pub fn put(&mut self, card: Card) {
         self.cards.push(card);
@@ -25,9 +31,9 @@ impl Turn {
     pub fn called(&self) -> Option<&Card> {
         for c in &self.cards.0 {
             if c.is_fool() {
-                continue
+                continue;
             } else {
-                return Some(c)
+                return Some(c);
             }
         }
         None

@@ -1,30 +1,32 @@
-use std::fmt;
-use regex::Regex;
+use crate::points::HasPoints;
+use crate::suit::Suit;
+use crate::suit_value::SuitValue;
+use crate::traits::{Colored, Discardable, Power, Representation, Symbol};
 use colored::{ColoredString, Colorize};
-use crate::color::Color;
-use crate::color_value::ColorValue;
-use crate::traits::{Symbol, Representation, Colored, Discardable, Power, Points};
+use ordered_float::OrderedFloat;
+use regex::Regex;
+use std::fmt;
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Normal {
-    pub color: Color,
-    pub value: ColorValue
+    pub suit: Suit,
+    pub value: SuitValue,
 }
 
 impl Normal {
-    pub fn new(color: Color, value: ColorValue) -> Self {
-        Self {color, value}
+    pub fn new(suit: Suit, value: SuitValue) -> Self {
+        Self { suit, value }
     }
 }
 
 impl fmt::Display for Normal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.value, self.color)
+        write!(f, "{}{}", self.value, self.suit)
     }
 }
 
-impl Points for Normal {
-    fn points(&self) -> f64 {
+impl HasPoints for Normal {
+    fn points(&self) -> OrderedFloat<f64> {
         self.value.points()
     }
 }
@@ -46,19 +48,20 @@ impl Discardable for Normal {
 
 impl Colored for Normal {
     fn color(&self) -> &'static str {
-        self.color.color()
+        self.suit.color()
     }
 }
 
 impl Symbol for Normal {
     fn symbol(&self) -> ColoredString {
-        self.color.symbol()
+        self.suit.symbol()
     }
 }
 
 impl Representation for Normal {
     fn repr(&self) -> ColoredString {
         let re = Regex::new(r"[\*]").unwrap();
-        re.replace_all(&self.value.repr(), format!("{}", self.color)).color(self.color())
+        re.replace_all(&self.value.repr(), format!("{}", self.suit))
+            .color(self.color())
     }
 }

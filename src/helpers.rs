@@ -1,12 +1,13 @@
-use std::io;
 use crate::errors::TarotErrorKind;
+use crate::options::Options;
+use std::io;
 
 #[allow(clippy::redundant_closure)]
 pub fn read_index() -> usize {
     let mut input = String::new();
     loop {
         if io::stdin().read_line(&mut input).is_ok() {
-            if let Ok(output) = input.trim().parse::<usize>(){
+            if let Ok(output) = input.trim().parse::<usize>() {
                 return output;
             }
         }
@@ -19,27 +20,26 @@ pub fn read_index() -> usize {
 //     let _ = stdin.read(&mut [0u8]).unwrap();
 // }
 
-pub fn test_game<const MODE: usize>() -> Result<(), TarotErrorKind> {
+pub fn test_game<const MODE: usize>(options: Options) -> Result<(), TarotErrorKind> {
     use crate::game::Game;
     loop {
-        let mut game: Game<MODE> = Game::new(true, true)?;
+        let mut game: Game<MODE> = Game::new(options)?;
         if let Err(fail) = game.distribute() {
             if fail == TarotErrorKind::PetitSec {
-                continue
+                continue;
             } else {
-                panic!("Error is not PetitSec")
+                return Err(fail);
             }
         }
-        assert!(game.bidding().is_ok());
-        if game.passed() {
-            continue
+        let taker_index = game.bidding()?;
+        if let Some(taker_index) = taker_index {
+            game.discard(taker_index)?;
+            while !game.finished() {
+                game.play()?;
+            }
+            game.count_points()?;
         }
-        assert!(game.discard().is_ok());
-        while !game.finished() {
-            assert!(game.play().is_ok());
-        }
-        assert!(game.count_points().is_ok());
-        return Ok(())
+        return Ok(());
     }
 }
 

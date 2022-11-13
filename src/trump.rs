@@ -1,11 +1,13 @@
-use std::fmt;
-use indoc::indoc;
+use crate::points::HasPoints;
+use crate::traits::{Colored, Discardable, Representation, Symbol};
 use colored::{ColoredString, Colorize};
+use indoc::indoc;
+use ordered_float::OrderedFloat;
+use std::fmt;
 use strum::EnumIter;
-use crate::traits::{Symbol, Representation, Colored, Discardable, Points};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum TrumpValue {
+pub enum Trump {
     Fool = 0,
     Petit = 1,
     _2 = 2,
@@ -27,37 +29,37 @@ pub enum TrumpValue {
     _18 = 18,
     _19 = 19,
     _20 = 20,
-    _21 = 21
+    _21 = 21,
 }
 
-impl fmt::Display for TrumpValue {
+impl fmt::Display for Trump {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Fool   => write!(f, "🃏"),
-            _ => write!(f, "{}{}", self.symbol(), *self as usize)
+            Self::Fool => write!(f, "🃏"),
+            _ => write!(f, "{}{}", self.symbol(), *self as usize),
         }
     }
 }
 
-impl TrumpValue {
+impl Trump {
     pub fn is_oudler(self) -> bool {
         matches!(self, Self::Fool | Self::Petit | Self::_21)
     }
 }
 
-impl Colored for TrumpValue {
+impl Colored for Trump {
     fn color(&self) -> &'static str {
         "cyan"
     }
 }
 
-impl Symbol for TrumpValue {
+impl Symbol for Trump {
     fn symbol(&self) -> ColoredString {
         "#".color(self.color())
     }
 }
 
-impl Discardable for TrumpValue {
+impl Discardable for Trump {
     fn discardable(&self) -> bool {
         // RULE: cant discard trumps
         false
@@ -68,20 +70,17 @@ impl Discardable for TrumpValue {
     }
 }
 
-impl Points for TrumpValue {
-    fn points(&self) -> f64 {
-        if self.is_oudler() {
-            4.5
-        } else {
-            0.5
-        }
+impl HasPoints for Trump {
+    fn points(&self) -> OrderedFloat<f64> {
+        let points = if self.is_oudler() { 4.5 } else { 0.5 };
+        OrderedFloat(points)
     }
 }
 
-impl Representation for TrumpValue {
+impl Representation for Trump {
     fn repr(&self) -> ColoredString {
         let trump = match self {
-            Self::Fool => indoc!{r#"
+            Self::Fool => indoc! {r#"
             🃏🃏🃏🃏🃏🃏🃏🃏
             🃏  _________ 🃏
             🃏 |_   ___  |🃏
@@ -91,7 +90,7 @@ impl Representation for TrumpValue {
             🃏 |_____|    🃏
             🃏            🃏
             🃏🃏🃏🃏🃏🃏🃏🃏"#},
-            Self::Petit => indoc!{r#"
+            Self::Petit => indoc! {r#"
             ################
             #     __       #
             #    /  |      #
@@ -101,7 +100,7 @@ impl Representation for TrumpValue {
             #   |_____|    #
             #              #
             ################"#},
-            Self::_2 => indoc!{r#"
+            Self::_2 => indoc! {r#"
             ################
             #    _____     #
             #   / ___ `.   #
@@ -111,7 +110,7 @@ impl Representation for TrumpValue {
             #  |_______|   #
             #              #
             ################"#},
-            Self::_3 => indoc!{r#"
+            Self::_3 => indoc! {r#"
             ################
             #    ______    #
             #   / ____ `.  #
@@ -121,7 +120,7 @@ impl Representation for TrumpValue {
             #   \______.'  #
             #              #
             ################"#},
-            Self::_4 => indoc!{r#"
+            Self::_4 => indoc! {r#"
             ################
             #   _    _     #
             #  | |  | |    #
@@ -131,7 +130,7 @@ impl Representation for TrumpValue {
             #     |_____|  #
             #              #
             ################"#},
-            Self::_5 => indoc!{r#"
+            Self::_5 => indoc! {r#"
             ################
             #   _______    #
             #  |  _____|   #
@@ -141,7 +140,7 @@ impl Representation for TrumpValue {
             #   \______.'  #
             #              #
             ################"#},
-            Self::_6 => indoc!{r#"
+            Self::_6 => indoc! {r#"
             ################
             #    ______    #
             #  .' ____ \   #
@@ -151,7 +150,7 @@ impl Representation for TrumpValue {
             #  '.______.'  #
             #              #
             ################"#},
-            Self::_7 => indoc!{r#"
+            Self::_7 => indoc! {r#"
             ################
             #    _______   #
             #   |  ___  |  #
@@ -161,7 +160,7 @@ impl Representation for TrumpValue {
             #     /_/      #
             #              #
             ################"#},
-            Self::_8 => indoc!{r#"
+            Self::_8 => indoc! {r#"
             ################
             #     ____     #
             #   .' __ '.   #
@@ -171,7 +170,7 @@ impl Representation for TrumpValue {
             #  `.______.'  #
             #              #
             ################"#},
-            Self::_9 => indoc!{r#"
+            Self::_9 => indoc! {r#"
             ################
             #    ______    #
             #  .' ____ '.  #
@@ -181,7 +180,7 @@ impl Representation for TrumpValue {
             #   \______,'  #
             #              #
             ################"#},
-            Self::_10 => indoc!{r#"
+            Self::_10 => indoc! {r#"
             ################
             # __      __   #
             #/  |   .'  '. #
@@ -191,7 +190,7 @@ impl Representation for TrumpValue {
             #_____| '.__.' #
             #              #
             ################"#},
-            Self::_11 => indoc!{r#"
+            Self::_11 => indoc! {r#"
             ################
             #  __     __   #
             # /  |   /  |  #
@@ -201,7 +200,7 @@ impl Representation for TrumpValue {
             #|_____||_____|#
             #              #
             ################"#},
-            Self::_12 => indoc!{r#"
+            Self::_12 => indoc! {r#"
             ################
             #  __     ___  #
             # /  |   / _ `.#
@@ -211,7 +210,7 @@ impl Representation for TrumpValue {
             #|_____||_____|#
             #              #
             ################"#},
-            Self::_13 => indoc!{r#"
+            Self::_13 => indoc! {r#"
             ################
             #  __    ____  #
             # /  |  / __ `.#
@@ -221,7 +220,7 @@ impl Representation for TrumpValue {
             #|_____ \____.'#
             #              #
             ################"#},
-            Self::_14 => indoc!{r#"
+            Self::_14 => indoc! {r#"
             ################
             #  __   _   _  #
             # /  | | | | | #
@@ -231,7 +230,7 @@ impl Representation for TrumpValue {
             #|_____| |____|#
             #              #
             ################"#},
-            Self::_15 => indoc!{r#"
+            Self::_15 => indoc! {r#"
             ################
             #  __   _____  #
             # /  | |  ___| #
@@ -241,7 +240,7 @@ impl Representation for TrumpValue {
             #|_____ \____.'#
             #              #
             ################"#},
-            Self::_16 => indoc!{r#"
+            Self::_16 => indoc! {r#"
             ################
             #  __    ____  #
             # /  | .' __ \ #
@@ -251,7 +250,7 @@ impl Representation for TrumpValue {
             #|_____'.____.'#
             #              #
             ################"#},
-            Self::_17 => indoc!{r#"
+            Self::_17 => indoc! {r#"
             ################
             #  __   _______#
             # /  | |  ___  #
@@ -261,7 +260,7 @@ impl Representation for TrumpValue {
             #|_____| /_/   #
             #              #
             ################"#},
-            Self::_18 => indoc!{r#"
+            Self::_18 => indoc! {r#"
             ################
             #  __     ___  #
             # /  |  .' _ '.#
@@ -271,7 +270,7 @@ impl Representation for TrumpValue {
             #|_____`._____.#
             #              #
             ################"#},
-            Self::_19 => indoc!{r#"
+            Self::_19 => indoc! {r#"
             ################
             #  __    ____  #
             # /  | .' __ '.#
@@ -281,7 +280,7 @@ impl Representation for TrumpValue {
             #|_____ \____,'#
             #              #
             ################"#},
-            Self::_20 => indoc!{r#"
+            Self::_20 => indoc! {r#"
             ################
             #   __     _   #
             #  /  `. .' '. #
@@ -291,7 +290,7 @@ impl Representation for TrumpValue {
             # |____| '._.' #
             #              #
             ################"#},
-            Self::_21 => indoc!{r#"
+            Self::_21 => indoc! {r#"
             ################
             #   ___   __   #
             #  / _ `./  |  #
@@ -305,4 +304,3 @@ impl Representation for TrumpValue {
         trump.color(self.color())
     }
 }
-

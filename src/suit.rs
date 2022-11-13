@@ -1,53 +1,53 @@
+use crate::errors::TarotErrorKind;
+use crate::traits::{Colored, Representation, Symbol};
+use colored::{ColoredString, Colorize};
 use std::fmt;
 use std::str::FromStr;
-use colored::{ColoredString, Colorize};
 use strum::EnumIter;
-use crate::errors::TarotErrorKind;
-use crate::traits::{Symbol, Representation, Colored};
 
 #[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
-pub enum Color {
+pub enum Suit {
     Heart,
     Spade,
     Diamond,
     Club,
 }
 
-impl fmt::Display for Color {
+impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.repr())
     }
 }
 
-impl Symbol for Color {
+impl Symbol for Suit {
     fn symbol(&self) -> ColoredString {
         match self {
-            Self::Spade   => "♠".color(self.color()),
+            Self::Spade => "♠".color(self.color()),
             Self::Diamond => "♦".color(self.color()),
-            Self::Club  => "♣".color(self.color()),
-            Self::Heart   => "♥".color(self.color()),
+            Self::Club => "♣".color(self.color()),
+            Self::Heart => "♥".color(self.color()),
         }
     }
 }
 
-impl Representation for Color {
+impl Representation for Suit {
     fn repr(&self) -> ColoredString {
         self.symbol()
     }
 }
 
-impl Colored for Color {
+impl Colored for Suit {
     fn color(&self) -> &'static str {
         match self {
-            Self::Spade   => "blue",
+            Self::Spade => "blue",
             Self::Diamond => "yellow",
-            Self::Club  => "green",
-            Self::Heart   => "red",
+            Self::Club => "green",
+            Self::Heart => "red",
         }
     }
 }
 
-impl FromStr for Color {
+impl FromStr for Suit {
     type Err = TarotErrorKind;
     fn from_str(s: &str) -> Result<Self, TarotErrorKind> {
         match s {
