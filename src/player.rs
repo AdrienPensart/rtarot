@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use rand::Rng;
+use rand::{Rng, thread_rng};
+use rand_distr::{WeightedError, WeightedAliasIndex, Distribution};
 use std::fmt;
 use strum::IntoEnumIterator;
 
@@ -266,13 +267,16 @@ impl Player {
             0.0
         }
     }
-    pub fn announce_slam(&mut self) -> bool {
+    pub fn announce_slam(&mut self) -> Result<bool, WeightedError> {
         if self.options.no_slam {
-            return false;
+            return Ok(false);
         }
         let slams = vec![false, true];
         self.slam = if self.options.random {
-            slams[rand::thread_rng().gen_range(0..slams.len())]
+            let weights = vec![99, 1];
+            let dist = WeightedAliasIndex::new(weights)?;
+            let mut rng = thread_rng();
+            slams[dist.sample(&mut rng)]
         } else {
             loop {
                 if !self.options.quiet {
@@ -290,7 +294,7 @@ impl Player {
                 }
             }
         };
-        self.slam
+        Ok(self.slam)
     }
     pub fn announce_handle(&mut self) {
         let mut trumps = self.hand.trumps();

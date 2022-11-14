@@ -150,11 +150,13 @@ impl<const MODE: usize> Game<MODE> {
                     contracts.retain(|other_contract| {
                         other_contract.multiplier() > player_contract.multiplier()
                     });
-                    if current_player.announce_slam() {
-                        println!(
-                            "player {} announced a slam, {}",
-                            current_player, current_player_index
-                        );
+                    if current_player.announce_slam()? {
+                        if !self.options.quiet {
+                            println!(
+                                "player {} announced a slam, {}",
+                                current_player, current_player_index
+                            );
+                        }
                         slam_index = Some(current_player_index);
                     }
                     self.contract = Some(player_contract);
@@ -223,7 +225,7 @@ impl<const MODE: usize> Game<MODE> {
                     self.players[attacker_index].set_discard(&self.dog);
                 }
                 Contract::GardeContre => {
-                    if let Some(first_defenser_index) = defensers.iter().next() {
+                    if let Some(first_defenser_index) = defensers.first() {
                         self.players[*first_defenser_index].set_discard(&self.dog);
                     }
                 }
