@@ -22,12 +22,18 @@ use crate::traits::Symbol;
 use crate::trump::Trump;
 use crate::turn::Turn;
 
-#[derive(Default, Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Player {
     name: String,
     mode: Mode,
     options: Options,
     score: OrderedFloat<f64>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PlayerInGame {
+    mode: Mode,
+    options: Options,
     slam: bool,
     team: Option<Team>,
     role: Option<Role>,
@@ -37,16 +43,17 @@ pub struct Player {
     owned: Deck,
     callee: Option<Card>,
     handle: Option<Handle>,
-    fool_played: bool,
 }
 
 impl fmt::Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} (score: {}), slam: {}",
-            self.name, self.score, self.slam
-        )?;
+        write!(f, "{} (score: {})", self.name, self.score)
+    }
+}
+
+impl fmt::Display for PlayerInGame {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Slam: {}", self.slam)?;
         if let Some(role) = &self.role {
             write!(f, ", Role : {}", role)?;
         }
@@ -60,23 +67,19 @@ impl fmt::Display for Player {
     }
 }
 
-impl HasPoints for Player {
+impl HasPoints for PlayerInGame {
     fn points(&self) -> OrderedFloat<f64> {
         self.owned.points()
     }
 }
 
-impl Player {
-    pub fn new(name: String, mode: Mode, options: Options) -> Self {
+impl PlayerInGame {
+    pub fn new(mode: Mode, options: Options) -> Self {
         Self {
-            name,
             mode,
             options,
             ..Self::default()
         }
-    }
-    pub fn fool_played(&self) -> bool {
-        self.fool_played
     }
     pub fn petit_sec(&self) -> bool {
         self.hand.petit_sec()
@@ -109,12 +112,10 @@ impl Player {
     }
     pub fn append_hand(&mut self, deck: &Deck) {
         self.hand.append(deck);
+        self.hand.sort();
     }
     pub fn append_owned(&mut self, deck: &Deck) {
         self.owned.append(deck);
-    }
-    pub fn sort_hand(&mut self) {
-        self.hand.sort();
     }
     pub fn role(&self) -> Option<Role> {
         self.role
@@ -125,34 +126,16 @@ impl Player {
     pub fn handle(&self) -> Option<Handle> {
         self.handle
     }
-    pub fn add_score(&mut self, points: OrderedFloat<f64>) {
-        self.score += points
-    }
-    pub fn score(&self) -> OrderedFloat<f64> {
-        self.score
-    }
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    pub fn prepare(&mut self) {
-        self.slam = false;
-        self.team = None;
-        self.role = None;
-        self.callee = None;
-        self.handle = None;
-        self.hand = Deck::empty();
-        self.owned = Deck::empty();
-    }
     pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
         self.owned.points_for_oudlers()
     }
-    pub fn play_card(&mut self, turn: &mut Turn) -> Result<Card, TarotErrorKind> {
+    pub fn play_card(&mut self, player: &Player, turn: &mut Turn) -> Result<Card, TarotErrorKind> {
         let Some(_) = self.role else {
-            return Err(TarotErrorKind::NoRoleForPlayer(self.name().to_string()));
+            return Err(TarotErrorKind::NoRoleForPlayer(player.name().to_string()));
         };
 
         let Some(_) = self.team else {
-            return Err(TarotErrorKind::NoTeamForPlayer(self.name().to_string()));
+            return Err(TarotErrorKind::NoTeamForPlayer(player.name().to_string()));
         };
 
         if (!self.owned.has_fool() && (self.owned.len() % self.mode.players() != 0))
@@ -183,9 +166,9 @@ impl Player {
                 );
             }
             if let Some(called) = turn.called() {
-                println!("{} must play color {}", self.name(), called.symbol())
+                println!("{} must play color {}", player.name(), called.symbol())
             } else {
-                println!("{} is first to play:", self.name())
+                println!("{} is first to play:", player.name())
             }
         }
 
@@ -205,10 +188,10 @@ impl Player {
         };
         Ok(self.hand.0.remove(final_choice))
     }
-    pub fn choose_contract_among(&mut self, contracts: &Vec<Contract>) -> Option<Contract> {
+    pub fn choose_contract_among(&mut self, player: &Player, contracts: &Vec<Contract>) -> Option<Contract> {
         if self.options.auto && contracts.len() == 1 {
             if !self.options.quiet {
-                println!("Auto pass");
+                println!("{} : auto pass", player.name());
             }
             return None;
         }
@@ -472,7 +455,6 @@ impl Player {
         }
     }
     pub fn discard(&mut self) {
-        self.sort_hand();
         if !self.options.quiet {
             println!("{}", self);
         }
@@ -648,51 +630,64 @@ impl Player {
     }
 }
 
+impl Player {
+    pub fn new(name: String, mode: Mode, options: Options) -> Self {
+        Self {
+            name,
+            mode,
+            options,
+            score: OrderedFloat(0.0)
+        }
+    }
+    pub fn add_score(&mut self, points: OrderedFloat<f64>) {
+        self.score += points
+    }
+    pub fn score(&self) -> OrderedFloat<f64> {
+        self.score
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
 #[test]
 fn player_tests() {
     use crate::points::MAX_POINTS;
 
-    let looser = Player {
-        name: "Player looser".to_string(),
+    let looser_in_game = PlayerInGame {
         mode: Mode::Four,
-        ..Player::default()
+        ..PlayerInGame::default()
     };
-    println!("looser: {}", &looser);
 
-    assert_eq!(looser.points(), 0.0);
-    assert_eq!(looser.count_oudlers(), 0);
+    assert_eq!(looser_in_game.points(), 0.0);
+    assert_eq!(looser_in_game.count_oudlers(), 0);
 
     let options = Options {
         random: true,
         ..Options::default()
     };
 
-    let mut winner = Player {
-        name: "Player looser".to_string(),
-        owned: Deck::random(),
-        mode: Mode::Five,
+    let mut winner_in_game = PlayerInGame {
         options,
-        ..Player::default()
+        mode: Mode::Five,
+        owned: Deck::random(),
+        ..PlayerInGame::default()
     };
-    winner.callee = Some(winner.call().unwrap());
+    winner_in_game.callee = Some(winner_in_game.call().unwrap());
     let turn = Turn::default();
-    println!("{}", &winner.hand);
-    let choices = &winner.choices(&turn).unwrap();
+    let choices = &winner_in_game.choices(&turn).unwrap();
     println!("Choices :");
     for &i in choices {
-        println!("\t{0: <2} : {1}", &i, &winner.hand.0[i]);
+        println!("\t{0: <2} : {1}", i, winner_in_game.hand.0[i]);
     }
 
-    assert_eq!((winner.points() - MAX_POINTS).abs(), 0.0);
-    assert_eq!(winner.count_oudlers(), 3);
+    assert_eq!((winner_in_game.points() - MAX_POINTS).abs(), 0.0);
+    assert_eq!(winner_in_game.count_oudlers(), 3);
 
-    let mut handle_owner = Player {
-        name: "Player looser".to_string(),
-        callee: Some(Card::normal(Suit::Club, SuitValue::King)),
-        mode: Mode::Five,
+    let mut handle_owner_in_game = PlayerInGame {
         options,
-        ..Player::default()
+        callee: Some(Card::normal(Suit::Club, SuitValue::King)),
+        ..PlayerInGame::default()
     };
-
-    handle_owner.announce_handle();
+    handle_owner_in_game.announce_handle();
 }

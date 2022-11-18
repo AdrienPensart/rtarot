@@ -24,21 +24,23 @@ pub fn test_game<const MODE: usize>(options: Options) -> Result<(), TarotErrorKi
     use crate::game::Game;
     loop {
         let mut game: Game<MODE> = Game::new(options)?;
-        if let Err(fail) = game.distribute() {
-            if fail == TarotErrorKind::PetitSec {
-                continue;
-            } else {
-                return Err(fail);
+        match game.distribute() {
+            Err(fail) => {
+                if fail == TarotErrorKind::PetitSec {
+                    continue;
+                } else {
+                    return Err(fail);
+                }
             }
-        }
-        let taker_index = game.bidding()?;
-        if let Some(taker_index) = taker_index {
-            game.discard(taker_index)?;
-            while !game.finished() {
-                game.play()?;
+            Ok(mut game_distributed) => {
+                if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
+                    while !game_started.finished() {
+                        game_started.play()?;
+                    }
+                    game_started.count_points()?;
+                }
             }
-            game.count_points()?;
-        }
+        };
         return Ok(());
     }
 }

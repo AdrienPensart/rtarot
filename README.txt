@@ -14,8 +14,8 @@ Usage :
   - clippy : cargo clippy --all-targets --all-features -- -D warnings
 
 Todo :
+- bug : slam rotating dealers too
 - type games : defense, attack, petit hunt, full assets
-- add colors
 - game managing
     - flag on/off
     - cut game
