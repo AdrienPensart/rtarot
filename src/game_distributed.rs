@@ -1,0 +1,176 @@
+use crate::card::Card;
+use crate::contract::Contract;
+use crate::deck::Deck;
+use crate::errors::TarotErrorKind;
+use crate::game::Game;
+use crate::game_started::GameStarted;
+use crate::mode::Mode;
+use crate::options::Options;
+use crate::player::Player;
+use crate::player_in_game::PlayerInGame;
+use crate::role::Role;
+use crate::team::Team;
+use itertools::{Either, Itertools};
+use std::fmt;
+use strum::IntoEnumIterator;
+
+pub struct GameDistributed<'a, const MODE: usize> {
+    game: &'a mut Game<MODE>,
+    options: Options,
+    dog: Deck,
+    players_in_game: [PlayerInGame; MODE],
+}
+
+impl<const MODE: usize> fmt::Display for GameDistributed<'_, MODE> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Game {} with dog {}", self.game.mode(), self.dog)
+    }
+}
+
+impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
+    pub fn new(game: &'a mut Game<MODE>, dog: Deck, players_in_game: [PlayerInGame; MODE], options: Options) -> Self {
+        Self {
+            game,
+            players_in_game,
+            dog,
+            options,
+        }
+    }
+    pub fn game(&mut self) -> &mut Game<MODE> {
+        self.game
+    }
+    pub fn players_and_their_game_mut(&mut self) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
+        (self.game.players(), &mut self.players_in_game)
+    }
+    pub fn rotate(&mut self, index: usize) {
+        self.players_in_game.rotate_left(index);
+    }
+    pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
+        (self.game.player(index), &self.players_in_game[index])
+    }
+    pub fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
+        (self.game.player(index), &mut self.players_in_game[index])
+    }
+    pub fn finished(&self) -> bool {
+        self.players_in_game.iter().all(|player| player.last_turn())
+    }
+    pub fn bidding_and_discard(
+        &'a mut self,
+    ) -> Result<Option<GameStarted<'a, MODE>>, TarotErrorKind> {
+        let mut contracts: Vec<Contract> = Contract::iter().collect();
+        let mut slam_index: Option<usize> = None;
+        let mut taker_index: Option<usize> = None;
+        let mut contract: Option<Contract> = None;
+
+        for (current_player_index, current_player_in_game) in
+            self.players_in_game.iter_mut().enumerate()
+        {
+            let current_player = &self.game.player(current_player_index);
+            let player_contract =
+                current_player_in_game.choose_contract_among(current_player, &contracts);
+            match (contract, player_contract) {
+                (None, None) | (Some(_), None) => {}
+                (None, Some(player_contract)) | (Some(_), Some(player_contract)) => {
+                    taker_index = Some(current_player_index);
+                    if !self.options.quiet {
+                        println!(
+                            "Player {} has chosen contract {}",
+                            current_player.name(),
+                            player_contract
+                        );
+                    }
+                    contracts.retain(|other_contract| {
+                        other_contract.multiplier() > player_contract.multiplier()
+                    });
+                    if current_player_in_game.announce_slam()? {
+                        if !self.options.quiet {
+                            println!(
+                                "player {} announced a slam, {}",
+                                current_player, current_player_index
+                            );
+                        }
+                        slam_index = Some(current_player_index);
+                    }
+                    contract = Some(player_contract);
+                }
+            };
+        }
+        let Some(contract) = contract else {
+            return Ok(None);
+        };
+        let Some(taker_index) = taker_index else {
+            return Ok(None);
+        };
+
+        // RULE: player who slammed must start
+        if let Some(slammer) = slam_index {
+            if !self.options.quiet {
+                println!("Chelem announced so {} must start.", slammer);
+            }
+            self.players_in_game.rotate_left(slammer);
+        }
+
+        let mut callee: Option<Card> = None;
+        if let Mode::Five = self.game.mode() {
+            callee = Some(self.players_in_game[taker_index].call()?);
+        }
+
+        for (current_player_index, current_player) in self.players_in_game.iter_mut().enumerate() {
+            current_player.set_callee(callee);
+            current_player.set_team(Team::Defense);
+            current_player.set_role(Role::Defenser);
+            if current_player_index == taker_index {
+                current_player.set_team(Team::Attack);
+                current_player.set_role(Role::Taker);
+            } else if let Some(ref card) = callee {
+                if current_player.has(card) {
+                    current_player.set_team(Team::Attack);
+                    current_player.set_role(Role::Ally);
+                }
+            }
+        }
+
+        let (attackers, defensers): (Vec<_>, Vec<_>) = self
+            .players_in_game
+            .iter()
+            .enumerate()
+            .partition_map(|(i, player)| {
+                if player.team() == Some(Team::Attack) {
+                    Either::Left(i)
+                } else {
+                    Either::Right(i)
+                }
+            });
+
+        for attacker_index in attackers {
+            if self.players_in_game[attacker_index].role() != Some(Role::Taker) {
+                continue;
+            }
+
+            match contract {
+                Contract::GardeSans => {
+                    self.players_in_game[attacker_index].set_discard(&self.dog);
+                }
+                Contract::GardeContre => {
+                    if let Some(first_defenser_index) = defensers.first() {
+                        self.players_in_game[*first_defenser_index].set_discard(&self.dog);
+                    }
+                }
+                _ => {
+                    if !self.options.quiet {
+                        println!("In the dog, there was : {}", self.dog);
+                    }
+                    self.players_in_game[attacker_index].append_hand(&self.dog);
+                    self.players_in_game[attacker_index].discard();
+                }
+            }
+        }
+        let game_started = GameStarted::new(
+            self,
+            contract,
+            taker_index,
+            self.options,
+        );
+        Ok(Some(game_started))
+    }
+}
