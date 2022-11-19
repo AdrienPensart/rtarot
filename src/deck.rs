@@ -1,5 +1,6 @@
 use colored::{ColoredString, Colorize};
 use derive_more::{Deref, Index, IntoIterator};
+use derive_new::new;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rand::{seq::SliceRandom, thread_rng};
@@ -15,7 +16,7 @@ use crate::suit_value::SuitValue;
 use crate::traits::{Colored, Discardable, Representation};
 use crate::trump::Trump;
 
-#[derive(Default, PartialEq, Eq, Clone, Debug, IntoIterator, Index, Deref)]
+#[derive(new, Default, PartialEq, Eq, Clone, Debug, IntoIterator, Index, Deref)]
 #[deref(forward)]
 pub struct Deck(Vec<Card>);
 
@@ -28,10 +29,10 @@ impl fmt::Display for Deck {
         }
         for colored in colors.iter() {
             if let Card::Normal(n) = colored {
-                if last_color == Some(&n.suit) {
+                if last_color == Some(n.suit()) {
                     write!(f, "{} ", n)?
                 } else {
-                    last_color = Some(&n.suit);
+                    last_color = Some(n.suit());
                     match last_color {
                         None => write!(f, "\t{}", n)?,
                         _ => write!(f, "\n\t{} ", n)?,
@@ -46,13 +47,13 @@ impl fmt::Display for Deck {
 impl HasPoints for Deck {
     fn points(&self) -> OrderedFloat<f64> {
         // RULE: if a slam is occuring and player has only fool or everyting except fool, fool = 4 points
-        if self.0.len() == MAX_CARDS - 1 && !self.has_fool() {
+        if self.len() == MAX_CARDS - 1 && !self.has_fool() {
             MAX_POINTS_WITHOUT_FOOL
         } else if self.only_fool() {
             OrderedFloat(4.0)
         } else {
             let mut total = OrderedFloat(0.0);
-            for card in self.0.iter() {
+            for card in self.iter() {
                 total += card.points()
             }
             total
@@ -61,12 +62,6 @@ impl HasPoints for Deck {
 }
 
 impl Deck {
-    pub fn new(cards: Vec<Card>) -> Self {
-        Self(cards)
-    }
-    pub fn empty() -> Self {
-        Self(Vec::new())
-    }
     pub fn random() -> Self {
         let mut d: Vec<Card> = Trump::iter()
             .map(Card::Trump)
@@ -81,22 +76,22 @@ impl Deck {
         Self(d)
     }
     pub fn trumps_and_colors(&self) -> (Vec<Card>, Vec<Card>) {
-        self.0.iter().partition(|c| c.is_trump())
+        self.iter().partition(|c| c.is_trump())
     }
     pub fn trumps(&self) -> Vec<&Card> {
-        self.0.iter().filter(|&card| card.is_trump()).collect()
+        self.iter().filter(|&card| card.is_trump()).collect()
     }
     pub fn only_fool(&self) -> bool {
-        self.len() == 1 && self.0.contains(&Card::Trump(Trump::Fool))
+        self.len() == 1 && self.contains(&Card::Trump(Trump::Fool))
     }
     pub fn has(&self, card: &Card) -> bool {
-        self.0.contains(card)
+        self.contains(card)
     }
     pub fn has_fool(&self) -> bool {
-        self.0.contains(&Card::Trump(Trump::Fool))
+        self.contains(&Card::Trump(Trump::Fool))
     }
     pub fn has_petit(&self) -> bool {
-        self.0.contains(&Card::Trump(Trump::Petit))
+        self.contains(&Card::Trump(Trump::Petit))
     }
     pub fn is_chelem(&self) -> bool {
         // RULE: deck is a chelem if all cards are there or fool is missing
@@ -121,22 +116,20 @@ impl Deck {
         self.0.is_empty()
     }
     pub fn petit_sec(&self) -> bool {
-        self.0.iter().fold(0, |acc, c| match &c {
+        self.iter().fold(0, |acc, c| match &c {
             Card::Trump(c) => acc + *c as usize,
             _ => acc,
         }) == 1
     }
     pub fn discardables(&self, discard: usize) -> Vec<usize> {
         let choices: Vec<usize> = self
-            .0
             .iter()
             .enumerate()
             .filter(|(_, card)| card.discardable())
             .map(|(i, _)| i)
             .collect();
         if choices.len() < discard {
-            self.0
-                .iter()
+            self.iter()
                 .enumerate()
                 .filter(|(_, card)| card.discardable_forced())
                 .map(|(i, _)| i)
@@ -146,29 +139,27 @@ impl Deck {
         }
     }
     fn oudlers(&self) -> Vec<Card> {
-        self.0
-            .iter()
+        self.iter()
             .filter(|card| card.is_trump())
             .copied()
             .collect()
     }
     pub fn count_trumps(&self) -> usize {
-        self.0.iter().filter(|card| card.is_trump()).count()
+        self.iter().filter(|card| card.is_trump()).count()
     }
     pub fn count_oudlers(&self) -> usize {
-        self.0.iter().filter(|card| card.is_oudler()).count()
+        self.iter().filter(|card| card.is_oudler()).count()
     }
     pub fn count_tete(&self, value: SuitValue) -> usize {
-        self.0
-            .iter()
+        self.iter()
             .filter(|card| match card {
-                Card::Normal(n) => n.value == value,
+                Card::Normal(n) => n.value() == &value,
                 _ => false,
             })
             .count()
     }
     pub fn misere_tete(&self) -> bool {
-        !self.0.iter().any(|card| match card {
+        !self.iter().any(|card| match card {
             Card::Normal(n) => n.points() == 0.5,
             _ => false,
         })
@@ -180,17 +171,12 @@ impl Deck {
         Self(self.0.drain(..).collect())
     }
     pub fn give_low(&mut self) -> Option<Card> {
-        let low_index = &self
-            .0
-            .iter()
+        self.iter()
             .enumerate()
             .filter_map(|(i, c)| if c.points() == 0.5 { Some(i) } else { None })
-            .next();
-        if let Some(index) = low_index {
-            Some(self.0.remove(index.to_owned()))
-        } else {
-            None
-        }
+            .next()
+            .as_ref()
+            .map(|index| self.remove(index.to_owned()))
     }
     pub fn remove(&mut self, index: usize) -> Card {
         self.0.remove(index)
@@ -209,7 +195,7 @@ impl Deck {
 impl Representation for Deck {
     fn repr(&self) -> ColoredString {
         let mut buffers: BTreeMap<usize, String> = BTreeMap::new();
-        for card in self.0.iter() {
+        for card in self.iter() {
             for (index, line) in card.repr().lines().enumerate() {
                 let line_and_reset = format!("{}\x1B[0m", &line.color(card.color()));
                 buffers

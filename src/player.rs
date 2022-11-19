@@ -1,14 +1,16 @@
+use derive_new::new;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
 use crate::mode::Mode;
 use crate::options::Options;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(new, Eq, PartialEq, Clone, Debug)]
 pub struct Player {
     name: String,
     mode: Mode,
     options: Options,
+    #[new(default)]
     score: OrderedFloat<f64>,
 }
 
@@ -19,14 +21,6 @@ impl fmt::Display for Player {
 }
 
 impl Player {
-    pub fn new(name: String, mode: Mode, options: Options) -> Self {
-        Self {
-            name,
-            mode,
-            options,
-            score: OrderedFloat(0.0),
-        }
-    }
     pub fn add_score(&mut self, points: OrderedFloat<f64>) {
         self.score += points
     }

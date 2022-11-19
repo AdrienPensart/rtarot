@@ -8,7 +8,7 @@ use colored::ColoredString;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
-#[derive(Copy, Ord, Clone, Debug, Hash, Eq, PartialEq, PartialOrd)]
+#[derive(Copy, Ord, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub enum Card {
     Trump(Trump),
     Normal(Normal),
@@ -60,7 +60,6 @@ impl Card {
     pub fn normal(suit: Suit, value: SuitValue) -> Self {
         Self::Normal(Normal::new(suit, value))
     }
-
     pub fn is_fool(self) -> bool {
         match self {
             Self::Trump(v) => v == Trump::Fool,
@@ -80,7 +79,7 @@ impl Card {
         match (&self, &arg) {
             (Self::Trump(c), Self::Normal(_)) => c != &Trump::Fool,
             (Self::Normal(_), Self::Trump(c)) => c == &Trump::Fool,
-            (Self::Normal(n1), Self::Normal(n2)) => n1.suit != n2.suit || n1.value > n2.value,
+            (Self::Normal(n1), Self::Normal(n2)) => n1.suit() != n2.suit() || n1.value() > n2.value(),
             (Self::Trump(v1), Self::Trump(v2)) => v1 > v2,
         }
     }

@@ -1,3 +1,4 @@
+use derive_new::new;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rand::{thread_rng, Rng};
@@ -23,17 +24,25 @@ use crate::traits::Symbol;
 use crate::trump::Trump;
 use crate::turn::Turn;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(new, Eq, PartialEq, Clone, Debug)]
 pub struct PlayerInGame {
     mode: Mode,
     options: Options,
+    #[new(default)]
     slam: bool,
+    #[new(default)]
     team: Option<Team>,
+    #[new(default)]
     role: Option<Role>,
+    #[new(default)]
     discard: Deck,
+    #[new(default)]
     hand: Deck,
+    #[new(default)]
     owned: Deck,
+    #[new(default)]
     callee: Option<Card>,
+    #[new(default)]
     handle: Option<Handle>,
 }
 
@@ -60,20 +69,6 @@ impl HasPoints for PlayerInGame {
 }
 
 impl PlayerInGame {
-    pub fn new(mode: Mode, options: Options) -> Self {
-        Self {
-            mode,
-            options,
-            callee: None,
-            slam: false,
-            team: None,
-            role: None,
-            handle: None,
-            discard: Deck::empty(),
-            hand: Deck::empty(),
-            owned: Deck::empty(),
-        }
-    }
     pub fn petit_sec(&self) -> bool {
         self.hand.petit_sec()
     }
@@ -513,7 +508,7 @@ impl PlayerInGame {
                             }
                         }
                         Card::Normal(card_normal) => {
-                            if card_normal.suit == called_normal.suit {
+                            if card_normal.suit() == called_normal.suit() {
                                 same_color.push(i);
                             } else {
                                 other_colors.push(i);
@@ -542,7 +537,7 @@ impl PlayerInGame {
                             }
                         }
                         Card::Normal(card_normal) => {
-                            if card_normal.suit == called_normal.suit {
+                            if card_normal.suit() == called_normal.suit() {
                                 same_color.push(i);
                             } else {
                                 other_colors.push(i);
@@ -610,7 +605,7 @@ impl PlayerInGame {
                     .enumerate()
                     .filter(|(_, &card)| match (card, self.callee) {
                         (Card::Normal(normal), Some(Card::Normal(callee_normal))) => {
-                            callee_normal.suit != normal.suit || normal.value == callee_normal.value
+                            callee_normal.suit() != normal.suit() || normal.value() == callee_normal.value()
                         }
                         _ => true,
                     })

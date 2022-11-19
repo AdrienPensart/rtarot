@@ -14,12 +14,11 @@ pub enum Handle {
 
 impl HasPoints for Handle {
     fn points(&self) -> OrderedFloat<f64> {
-        let points = match self {
+        OrderedFloat(match self {
             Self::Refused => 0.0,
             Self::Simple => 20.0,
             Self::Double => 30.0,
             Self::Triple => 40.0,
-        };
-        OrderedFloat(points)
+        })
     }
 }

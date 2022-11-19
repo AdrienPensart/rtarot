@@ -166,7 +166,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                 }
             }
         }
-        let game_started = GameStarted::new(self, contract, taker_index, self.options);
+        let game_started = GameStarted::new(self, taker_index, contract, self.options);
         Ok(Some(game_started))
     }
 }

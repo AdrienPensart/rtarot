@@ -55,11 +55,9 @@ impl Mode {
             Self::Five => 5,
         }
     }
-
     pub const fn default() -> Self {
         Self::Four
     }
-
     pub const fn ratio(&self, with_ally: bool) -> OrderedFloat<f64> {
         let ratio = match self {
             Mode::Three => 2.0,
@@ -74,7 +72,6 @@ impl Mode {
         };
         OrderedFloat(ratio)
     }
-
     pub const fn dog_size(&self) -> usize {
         match self {
             Self::Five => 3,

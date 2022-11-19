@@ -1,3 +1,7 @@
+use derive_new::new;
+use ordered_float::OrderedFloat;
+use std::fmt;
+
 use crate::contract::Contract;
 use crate::errors::TarotErrorKind;
 use crate::game_distributed::GameDistributed;
@@ -9,16 +13,19 @@ use crate::points::{HasPoints, BASE_CONTRACT_POINTS, MAX_CARDS};
 use crate::role::Role;
 use crate::team::Team;
 use crate::turn::Turn;
-use ordered_float::OrderedFloat;
-use std::fmt;
 
+#[derive(new)]
 pub struct GameStarted<'a, const MODE: usize> {
     game_distributed: &'a mut GameDistributed<'a, MODE>,
     taker_index: usize,
-    options: Options,
     contract: Contract,
+    options: Options,
+
+    #[new(default)]
     petit_au_bout: Option<Team>,
+    #[new(default)]
     defense_cards: usize,
+    #[new(default)]
     attack_cards: usize,
 }
 
@@ -40,22 +47,6 @@ impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
 }
 
 impl<'a, const MODE: usize> GameStarted<'a, MODE> {
-    pub fn new(
-        game_distributed: &'a mut GameDistributed<'a, MODE>,
-        contract: Contract,
-        taker_index: usize,
-        options: Options,
-    ) -> Self {
-        Self {
-            taker_index,
-            options,
-            game_distributed,
-            contract,
-            petit_au_bout: None,
-            defense_cards: 0,
-            attack_cards: 0,
-        }
-    }
     pub fn is_consistent(&mut self) -> Result<(), TarotErrorKind> {
         self.game_distributed.game().is_consistent()
     }

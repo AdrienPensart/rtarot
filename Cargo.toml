@@ -13,6 +13,7 @@ thiserror = "1.0"
 rand = "0.8"
 rand_distr = "0.4.3"
 derive_more = "0.99.17"
+derive-new = "0.5.9"
 itertools = "0.10"
 strum = { version = "0.24", features = ["derive"] }
 indoc = "1.0"

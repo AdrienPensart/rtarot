@@ -3,25 +3,24 @@ use crate::suit::Suit;
 use crate::suit_value::SuitValue;
 use crate::traits::{Colored, Discardable, Power, Representation, Symbol};
 use colored::{ColoredString, Colorize};
+use derive_more::Display;
+use derive_new::new;
 use ordered_float::OrderedFloat;
 use regex::Regex;
-use std::fmt;
 
-#[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(new, Display, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[display(fmt = "{}{}", value, suit)]
 pub struct Normal {
-    pub suit: Suit,
-    pub value: SuitValue,
+    suit: Suit,
+    value: SuitValue,
 }
 
 impl Normal {
-    pub fn new(suit: Suit, value: SuitValue) -> Self {
-        Self { suit, value }
+    pub const fn suit(&self) -> &Suit {
+        &self.suit
     }
-}
-
-impl fmt::Display for Normal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.value, self.suit)
+    pub const fn value(&self) -> &SuitValue {
+        &self.value
     }
 }
 
