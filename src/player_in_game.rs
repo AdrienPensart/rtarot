@@ -95,20 +95,20 @@ impl PlayerInGame {
     pub fn set_discard(&mut self, discard: &Deck) {
         self.discard = discard.clone()
     }
-    pub fn owned(&self) -> Deck {
+    pub fn all_cards(&self) -> Deck {
         let mut all_cards = self.owned.clone();
-        all_cards.append(&self.discard);
+        all_cards.extend(&self.discard);
         all_cards
     }
     pub fn push_owned(&mut self, card: Card) {
         self.owned.push(card);
     }
-    pub fn append_hand(&mut self, deck: &Deck) {
-        self.hand.append(deck);
+    pub fn extend_hand(&mut self, deck: &Deck) {
+        self.hand.extend(deck);
         self.hand.sort();
     }
-    pub fn append_owned(&mut self, deck: &Deck) {
-        self.owned.append(deck);
+    pub fn extend_owned(&mut self, deck: &Deck) {
+        self.owned.extend(deck);
     }
     pub fn role(&self) -> Option<Role> {
         self.role
@@ -142,7 +142,7 @@ impl PlayerInGame {
             self.announce_handle();
         }
         if !self.options.quiet {
-            println!("Hand of {} : {}", self, self.hand);
+            println!("Hand of {} : {}", player.name(), self.hand);
             println!("Choices :");
         }
         let possible_choices = &self.choices(turn)?;
@@ -155,7 +155,7 @@ impl PlayerInGame {
             for &possible_choice in possible_choices {
                 println!(
                     "\t{0: <4} : press {1}",
-                    self.hand.0[possible_choice], possible_choice
+                    self.hand[possible_choice], possible_choice
                 );
             }
             if let Some(called) = turn.called() {
@@ -179,7 +179,7 @@ impl PlayerInGame {
                 }
             }
         };
-        Ok(self.hand.0.remove(final_choice))
+        Ok(self.hand.remove(final_choice))
     }
     pub fn choose_contract_among(
         &mut self,
@@ -469,7 +469,7 @@ impl PlayerInGame {
                         println!("Hand of taker: {}", self.hand);
                         println!("Possibilities:");
                         for &i in &discardables_indexes {
-                            println!("\t{0: <4} : press {1}", self.hand.0[i], i);
+                            println!("\t{0: <4} : press {1}", self.hand[i], i);
                         }
                         println!("Currently discarded: {}", self.owned);
                     }
@@ -482,9 +482,9 @@ impl PlayerInGame {
                 }
             };
             if !self.options.quiet {
-                println!("Discarded : {}", self.hand.0[discard_index]);
+                println!("Discarded : {}", self.hand[discard_index]);
             }
-            self.discard.push(self.hand.0.remove(discard_index));
+            self.discard.push(self.hand.remove(discard_index));
         }
 
         if !self.options.quiet {
@@ -503,7 +503,7 @@ impl PlayerInGame {
         let mut same_color = Vec::new();
         let mut compatibles = match (turn.called(), turn.master_card()) {
             (Some(Card::Normal(called_normal)), Some(Card::Normal(_))) => {
-                for (i, card) in self.hand.0.iter().enumerate() {
+                for (i, card) in self.hand.iter().enumerate() {
                     match card {
                         Card::Trump(card_trump_value) => {
                             if card_trump_value == &Trump::Fool {
@@ -530,7 +530,7 @@ impl PlayerInGame {
                 }
             }
             (Some(Card::Normal(called_normal)), Some(Card::Trump(master_trump_value))) => {
-                for (i, card) in self.hand.0.iter().enumerate() {
+                for (i, card) in self.hand.iter().enumerate() {
                     match card {
                         Card::Trump(card_trump_value) => {
                             if card_trump_value == &Trump::Fool {
@@ -561,7 +561,7 @@ impl PlayerInGame {
                 }
             }
             (Some(Card::Trump(_)), Some(Card::Trump(master_trump_value))) => {
-                for (i, card) in self.hand.0.iter().enumerate() {
+                for (i, card) in self.hand.iter().enumerate() {
                     if let Card::Trump(card_trump_value) = card {
                         if card_trump_value == &Trump::Fool {
                             and_fool = Some(i);
@@ -606,7 +606,6 @@ impl PlayerInGame {
             (None, None) => match (self.is_first_turn(), self.mode) {
                 (true, Mode::Five) => self
                     .hand
-                    .0
                     .iter()
                     .enumerate()
                     .filter(|(_, &card)| match (card, self.callee) {

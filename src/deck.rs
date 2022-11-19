@@ -1,4 +1,5 @@
 use colored::{ColoredString, Colorize};
+use derive_more::{Deref, Index, IntoIterator};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use rand::{seq::SliceRandom, thread_rng};
@@ -14,9 +15,9 @@ use crate::suit_value::SuitValue;
 use crate::traits::{Colored, Discardable, Representation};
 use crate::trump::Trump;
 
-#[derive(Default, PartialEq, Eq, Clone, Debug)]
-// pub struct Deck (pub HashSet<Card>);
-pub struct Deck(pub Vec<Card>);
+#[derive(Default, PartialEq, Eq, Clone, Debug, IntoIterator, Index, Deref)]
+#[deref(forward)]
+pub struct Deck(Vec<Card>);
 
 impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -60,6 +61,9 @@ impl HasPoints for Deck {
 }
 
 impl Deck {
+    pub fn new(cards: Vec<Card>) -> Self {
+        Self(cards)
+    }
     pub fn empty() -> Self {
         Self(Vec::new())
     }
@@ -105,7 +109,7 @@ impl Deck {
             2 => Ok(OrderedFloat(41.0)),
             3 => Ok(OrderedFloat(36.0)),
             _ => {
-                let only_oudlers = Self(self._oudlers());
+                let only_oudlers = Self(self.oudlers());
                 Err(TarotErrorKind::InvalidOudlersCount(only_oudlers))
             }
         }
@@ -141,7 +145,7 @@ impl Deck {
             choices
         }
     }
-    pub fn _oudlers(&self) -> Vec<Card> {
+    fn oudlers(&self) -> Vec<Card> {
         self.0
             .iter()
             .filter(|card| card.is_trump())
@@ -188,7 +192,10 @@ impl Deck {
             None
         }
     }
-    pub fn append(&mut self, deck: &Self) {
+    pub fn remove(&mut self, index: usize) -> Card {
+        self.0.remove(index)
+    }
+    pub fn extend(&mut self, deck: &Self) {
         self.0.extend(deck.0.clone());
     }
     pub fn push(&mut self, card: Card) {

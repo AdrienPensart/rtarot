@@ -10,11 +10,10 @@ pub struct Turn {
 }
 
 impl Turn {
-    pub fn take(mut self) -> Deck {
-        Deck(
+    pub fn take_cards_except_fool(self) -> Deck {
+        Deck::new(
             self.cards
-                .0
-                .drain(..)
+                .into_iter()
                 .filter(|card| card.is_fool())
                 .collect(),
         )
@@ -29,7 +28,7 @@ impl Turn {
         self.cards.is_empty()
     }
     pub fn called(&self) -> Option<&Card> {
-        for c in &self.cards.0 {
+        for c in self.cards.iter() {
             if c.is_fool() {
                 continue;
             } else {
@@ -39,7 +38,7 @@ impl Turn {
         None
     }
     pub fn master_card(&self) -> Option<&Card> {
-        self.master_index.map(|index| &self.cards.0[index])
+        self.master_index.map(|index| &self.cards[index])
     }
 }
 

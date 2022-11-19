@@ -40,7 +40,12 @@ impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
 }
 
 impl<'a, const MODE: usize> GameStarted<'a, MODE> {
-    pub fn new(game_distributed: &'a mut GameDistributed<'a, MODE>, contract: Contract, taker_index: usize, options: Options) -> Self {
+    pub fn new(
+        game_distributed: &'a mut GameDistributed<'a, MODE>,
+        contract: Contract,
+        taker_index: usize,
+        options: Options,
+    ) -> Self {
         Self {
             taker_index,
             options,
@@ -76,9 +81,10 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
                 self.player_and_his_game_mut(current_player_index);
+            let current_player_name = current_player.name();
 
             if !quiet {
-                println!("current player index : {}", current_player_index);
+                println!("current player index : {current_player_index}");
             }
             let Some(team) = current_player_in_game.team() else {
                 return Err(TarotErrorKind::NoTeamForPlayer(current_player.name().to_string()));
@@ -114,17 +120,13 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                     if master.master(card) {
                         if !quiet {
                             println!(
-                                "Master card is {}, so player {} stays master",
-                                master,
-                                current_player.name()
+                                "Master card is {master}, so player {current_player_name} stays master",
                             );
                         }
                     } else {
                         if !quiet {
                             println!(
-                                "Master card is {}, so player {} becomes master",
-                                card,
-                                current_player.name()
+                                "Master card is {card}, so player {current_player_name} becomes master",
                             );
                         }
                         master_player_index = current_player_index;
@@ -133,9 +135,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 } else {
                     if !quiet {
                         println!(
-                            "First card is {}, so player {} becomes master",
-                            card,
-                            current_player.name()
+                            "First card is {card}, so player {current_player_name} becomes master",
                         );
                     }
                     master_player_index = current_player_index;
@@ -143,7 +143,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 }
             }
             if !self.options.quiet {
-                println!("{}", &turn);
+                println!("{turn}");
             }
         }
 
@@ -153,21 +153,21 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
 
         let (master_player, master_player_in_game) =
             self.player_and_his_game_mut(master_player_index);
+        let master_player_name = master_player.name();
         if !quiet {
-            println!("Player {} has win turn", master_player);
+            println!("Player {master_player_name} has win turn");
         }
         // RULE: petit au bout works for last turn, or before last turn if a slam is occuring
         let last_turn = master_player_in_game.last_turn();
         let before_last_turn = master_player_in_game.before_last_turn();
-        let turn_cards = turn.take();
+        let turn_cards = turn.take_cards_except_fool();
 
         let petit_au_bout = if turn_cards.has_petit()
             && (last_turn || (before_last_turn && (attack_near_slam || defense_near_slam)))
         {
             if !quiet {
                 println!(
-                    "{} has Petit in last turn (Petit au bout) : +10 points",
-                    master_player
+                    "{master_player_name} has Petit in last turn (Petit au bout) : +10 points",
                 );
             }
             master_player_in_game.team()
@@ -184,7 +184,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             Team::Attack => attack_cards = turn_cards.len(),
             Team::Defense => defense_cards = turn_cards.len(),
         }
-        master_player_in_game.append_owned(&turn_cards);
+        master_player_in_game.extend_owned(&turn_cards);
         self.game_distributed.rotate(master_player_index);
         self.petit_au_bout = petit_au_bout;
         self.attack_cards += attack_cards;
@@ -212,7 +212,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             if let Some(handle) = &current_player_in_game.handle() {
                 handle_bonus = handle.points();
                 if !quiet {
-                    println!("Handle bonus: {}", handle_bonus);
+                    println!("Handle bonus: {handle_bonus}");
                 }
             }
             match current_player_in_game.role() {
@@ -247,7 +247,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         };
 
         // give a low card if someone owe a card to someone else
-        if let (Some(owning_card_player_index), Some(missing_card_player_index)) = (owning_card_player_index, missing_card_player_index) {
+        if let (Some(owning_card_player_index), Some(missing_card_player_index)) =
+            (owning_card_player_index, missing_card_player_index)
+        {
             let (players, players_in_game) = self.players_and_their_game_mut();
             let owning_card_player_name = players[owning_card_player_index].name();
             let low_card = players_in_game[owning_card_player_index].give_low();
@@ -268,13 +270,13 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             let (players, players_in_game) = self.players_and_their_game_mut();
             let ally = &players[ally_index].name();
             let ally_in_game = &mut players_in_game[ally_index];
-            let ally_cards = ally_in_game.owned();
+            let ally_cards = ally_in_game.all_cards();
             let taker = &players[taker_index].name();
             let taker_in_game = &mut players_in_game[taker_index];
             if !quiet {
                 println!("{ally} gives his card to {taker}")
             }
-            taker_in_game.append_owned(&ally_cards)
+            taker_in_game.extend_owned(&ally_cards)
         }
 
         let (taker, taker_in_game) = self.player_and_his_game_mut(self.taker_index);
@@ -293,18 +295,14 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
 
         let contract_points = if taker_points >= points_for_oudlers {
             if !quiet {
-                println!(
-                    "Contract total: {}",
-                    taker_points - points_for_oudlers + BASE_CONTRACT_POINTS
-                );
+                let total = taker_points - points_for_oudlers + BASE_CONTRACT_POINTS;
+                println!("Contract total: {total}");
             }
             (taker_points - points_for_oudlers + BASE_CONTRACT_POINTS) * self.contract.multiplier()
         } else {
             if !self.options.quiet {
-                println!(
-                    "Contract total: {}",
-                    taker_points - points_for_oudlers - BASE_CONTRACT_POINTS
-                );
+                let total = taker_points - points_for_oudlers - BASE_CONTRACT_POINTS;
+                println!("Contract total: {total}");
             }
             (taker_points - points_for_oudlers - BASE_CONTRACT_POINTS) * self.contract.multiplier()
         };
@@ -314,20 +312,20 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 self.contract,
                 self.contract.multiplier()
             );
-            println!("Taker contract points: {}", contract_points);
+            println!("Taker contract points: {contract_points}");
         }
 
         let points_petit_au_bout = 10.0 * self.contract.multiplier();
         let petit_au_bout_bonus = match self.petit_au_bout {
             Some(Team::Defense) => {
                 if !self.options.quiet {
-                    println!("Petit au bout for defense: -{}", points_petit_au_bout);
+                    println!("Petit au bout for defense: -{points_petit_au_bout}");
                 }
                 -points_petit_au_bout
             }
             Some(Team::Attack) => {
                 if !self.options.quiet {
-                    println!("Petit au bout for attack: {}", points_petit_au_bout);
+                    println!("Petit au bout for attack: {points_petit_au_bout}");
                 }
                 points_petit_au_bout
             }

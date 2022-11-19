@@ -91,7 +91,7 @@ impl<const MODE: usize> Game<MODE> {
         dog.sort();
         for player in players_in_game.iter_mut() {
             let buffer = new_deck.give(self.mode.cards_per_player());
-            player.append_hand(&buffer)
+            player.extend_hand(&buffer)
         }
 
         for player in players_in_game.iter() {
@@ -101,12 +101,7 @@ impl<const MODE: usize> Game<MODE> {
             }
         }
 
-        let game_distributed = GameDistributed::new(
-            self,
-            dog,
-            players_in_game,
-            self.options,
-        );
+        let game_distributed = GameDistributed::new(self, dog, players_in_game, self.options);
         Ok(game_distributed)
     }
     pub fn rotate(&mut self) {

@@ -28,7 +28,12 @@ impl<const MODE: usize> fmt::Display for GameDistributed<'_, MODE> {
 }
 
 impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
-    pub fn new(game: &'a mut Game<MODE>, dog: Deck, players_in_game: [PlayerInGame; MODE], options: Options) -> Self {
+    pub fn new(
+        game: &'a mut Game<MODE>,
+        dog: Deck,
+        players_in_game: [PlayerInGame; MODE],
+        options: Options,
+    ) -> Self {
         Self {
             game,
             players_in_game,
@@ -74,9 +79,8 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                     taker_index = Some(current_player_index);
                     if !self.options.quiet {
                         println!(
-                            "Player {} has chosen contract {}",
-                            current_player.name(),
-                            player_contract
+                            "Player {} has chosen contract {player_contract}",
+                            current_player.name()
                         );
                     }
                     contracts.retain(|other_contract| {
@@ -84,10 +88,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                     });
                     if current_player_in_game.announce_slam()? {
                         if !self.options.quiet {
-                            println!(
-                                "player {} announced a slam, {}",
-                                current_player, current_player_index
-                            );
+                            println!("Player {current_player} announced a slam");
                         }
                         slam_index = Some(current_player_index);
                     }
@@ -105,7 +106,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         // RULE: player who slammed must start
         if let Some(slammer) = slam_index {
             if !self.options.quiet {
-                println!("Chelem announced so {} must start.", slammer);
+                println!("Chelem announced so {slammer} must start.");
             }
             self.players_in_game.rotate_left(slammer);
         }
@@ -160,17 +161,12 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                     if !self.options.quiet {
                         println!("In the dog, there was : {}", self.dog);
                     }
-                    self.players_in_game[attacker_index].append_hand(&self.dog);
+                    self.players_in_game[attacker_index].extend_hand(&self.dog);
                     self.players_in_game[attacker_index].discard();
                 }
             }
         }
-        let game_started = GameStarted::new(
-            self,
-            contract,
-            taker_index,
-            self.options,
-        );
+        let game_started = GameStarted::new(self, contract, taker_index, self.options);
         Ok(Some(game_started))
     }
 }
