@@ -31,8 +31,12 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
 impl<const MODE: usize> Game<MODE> {
     pub fn new(options: Options) -> Result<Self, TarotErrorKind> {
         let mode: Mode = MODE.try_into()?;
-        let players: [Player; MODE] =
-            array_init(|i| Player::new(mode.player_name(i).to_string(), mode, options));
+        let players: [Player; MODE] = array_init(|i| {
+            let name = mode.player_name(i);
+            let random = options.test || name != "South";
+            let player_options = Options { random, ..options };
+            Player::new(name.to_string(), mode, player_options)
+        });
         Ok(Self {
             players,
             mode,
@@ -63,18 +67,20 @@ impl<const MODE: usize> Game<MODE> {
     pub fn players(&self) -> &[Player; MODE] {
         &self.players
     }
-    pub fn start(mut self) -> Result<(), TarotErrorKind> {
-        loop {
-            let mut game_distributed = self.distribute()?;
-            if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
-                while !game_started.finished() {
-                    game_started.play()?;
+    pub fn start(mut self, deals: u16) -> Result<(), TarotErrorKind> {
+        for _ in 0..deals {
+            if let Some(mut game_distributed) = self.distribute() {
+                if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
+                    while !game_started.finished() {
+                        game_started.play()?;
+                    }
+                    game_started.count_points()?;
+                    break;
+                } else if !self.options.quiet {
+                    println!("Everyone passed !");
                 }
-                game_started.count_points()?;
-                break;
-            } else if !self.options.quiet {
-                println!("Everyone passed !");
             }
+            self.rotate_dealer();
         }
         if !self.options.quiet {
             println!("GAME ENDED");
@@ -82,9 +88,9 @@ impl<const MODE: usize> Game<MODE> {
         }
         Ok(())
     }
-    pub fn distribute(&mut self) -> Result<GameDistributed<MODE>, TarotErrorKind> {
+    pub fn distribute(&mut self) -> Option<GameDistributed<MODE>> {
         let mut players_in_game: [PlayerInGame; MODE] =
-            array_init(|_| PlayerInGame::new(self.mode, self.options));
+            array_init(|i| PlayerInGame::new(self.mode, *self.players[i].options()));
 
         let mut new_deck = Deck::random();
         let mut dog = new_deck.give(self.mode.dog_size());
@@ -96,15 +102,23 @@ impl<const MODE: usize> Game<MODE> {
 
         for player in players_in_game.iter() {
             if player.petit_sec() {
-                // RULE: PetitSec cancel the game
-                return Err(TarotErrorKind::PetitSec);
+                if !self.options.quiet {
+                    dbg!("Petit sec, cancel the game");
+                }
+                return None;
             }
         }
-
-        let game_distributed = GameDistributed::new(self, dog, players_in_game, self.options);
-        Ok(game_distributed)
+        Some(GameDistributed::new(
+            self,
+            dog,
+            players_in_game,
+            self.options,
+        ))
     }
-    pub fn rotate(&mut self) {
+    pub fn rotate_at(&mut self, index: usize) {
+        self.players.rotate_left(index);
+    }
+    pub fn rotate_dealer(&mut self) {
         if self.dealer == self.players.len() - 1 {
             self.dealer = 0;
         } else {
@@ -120,9 +134,12 @@ fn game_tests() {
     use crate::mode::Mode;
     let options = Options {
         random: true,
-        ..Options::default()
+        test: true,
+        auto: true,
+        quiet: true,
+        no_slam: false,
     };
-    test_game::<{ Mode::Three.players() }>(options).unwrap();
-    test_game::<{ Mode::Four.players() }>(options).unwrap();
-    test_game::<{ Mode::Five.players() }>(options).unwrap();
+    test_game::<{ Mode::Three.players() }>(options, 1).unwrap();
+    test_game::<{ Mode::Four.players() }>(options, 1).unwrap();
+    test_game::<{ Mode::Five.players() }>(options, 1).unwrap();
 }

@@ -5,6 +5,7 @@ use std::fmt;
 use crate::contract::Contract;
 use crate::errors::TarotErrorKind;
 use crate::game_distributed::GameDistributed;
+use crate::helpers::wait_input;
 use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
@@ -22,7 +23,7 @@ pub struct GameStarted<'a, const MODE: usize> {
     options: Options,
 
     #[new(default)]
-    petit_au_bout: Option<Team>,
+    petit_au_bout_for_team: Option<Team>,
     #[new(default)]
     defense_cards: usize,
     #[new(default)]
@@ -32,8 +33,8 @@ pub struct GameStarted<'a, const MODE: usize> {
 impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Contract : {}", self.contract)?;
-        if let Some(petit_au_bout) = &self.petit_au_bout {
-            writeln!(f, "Petit au bout? : {}", petit_au_bout)?;
+        if let Some(team) = &self.petit_au_bout_for_team {
+            writeln!(f, "Petit au bout? : {}", team)?;
         }
         writeln!(f, "Defense cards : {}", self.defense_cards)?;
         writeln!(f, "Attack cards : {}", self.attack_cards)?;
@@ -56,6 +57,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
     pub fn mode(&mut self) -> &Mode {
         self.game_distributed.game().mode()
     }
+    pub fn player(&self, index: usize) -> &Player {
+        self.game_distributed.player(index)
+    }
     pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         self.game_distributed.player_and_his_game(index)
     }
@@ -75,9 +79,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             let current_player_name = current_player.name();
 
             if !quiet {
-                println!("current player index : {current_player_index}");
+                println!("Current player {current_player_name} (index : {current_player_index})");
             }
-            let Some(team) = current_player_in_game.team() else {
+            let &Some(team) = current_player_in_game.team() else {
                 return Err(TarotErrorKind::NoTeamForPlayer(current_player.name().to_string()));
             };
 
@@ -110,8 +114,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 if let Some(master) = turn.master_card() {
                     if master.master(card) {
                         if !quiet {
+                            let master_player_name = self.player(master_player_index).name();
                             println!(
-                                "Master card is {master}, so player {current_player_name} stays master",
+                                "Master card is {master}, so player {master_player_name} stays master",
                             );
                         }
                     } else {
@@ -140,35 +145,49 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
 
         let mode = *self.mode();
         let attack_near_slam = self.attack_cards == MAX_CARDS - mode.dog_size() - mode.players();
+        if attack_near_slam && !quiet {
+            println!("Attack is near slam!");
+        }
         let defense_near_slam = self.defense_cards == MAX_CARDS - mode.dog_size() - mode.players();
+        if defense_near_slam && !quiet {
+            println!("Defense is near slam!");
+        }
 
-        let (master_player, master_player_in_game) =
-            self.player_and_his_game_mut(master_player_index);
-        let master_player_name = master_player.name();
+        let (players, players_in_game) = self.players_and_their_game_mut();
+        let master_player_name = players[master_player_index].name();
+        let master_player_in_game = &mut players_in_game[master_player_index];
         if !quiet {
             println!("Player {master_player_name} has win turn");
         }
         // RULE: petit au bout works for last turn, or before last turn if a slam is occuring
         let last_turn = master_player_in_game.last_turn();
+        if last_turn && !quiet {
+            println!("Last turn detected");
+        }
         let before_last_turn = master_player_in_game.before_last_turn();
-        let turn_cards = turn.take_cards_except_fool();
+        if before_last_turn && !quiet {
+            println!("Before last turn detected");
+        }
 
-        let petit_au_bout = if turn_cards.has_petit()
+        let Some(master_player_team) = master_player_in_game.team() else {
+            return Err(TarotErrorKind::NoTeamForPlayer(master_player_name.to_string()));
+        };
+
+        let turn_cards = turn.take_cards_except_fool();
+        let petit_au_bout_for_team = if turn_cards.has_petit()
             && (last_turn || (before_last_turn && (attack_near_slam || defense_near_slam)))
         {
             if !quiet {
                 println!(
-                    "{master_player_name} has Petit in last turn (Petit au bout) : +10 points",
+                    "{master_player_name} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points",
                 );
             }
-            master_player_in_game.team()
+            wait_input();
+            Some(*master_player_team)
         } else {
             None
         };
 
-        let Some(master_player_team) = master_player_in_game.team() else {
-            return Err(TarotErrorKind::NoTeamForPlayer(master_player.name().to_string()));
-        };
         let mut attack_cards = 0;
         let mut defense_cards = 0;
         match master_player_team {
@@ -176,8 +195,8 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             Team::Defense => defense_cards = turn_cards.len(),
         }
         master_player_in_game.extend_owned(&turn_cards);
-        self.game_distributed.rotate(master_player_index);
-        self.petit_au_bout = petit_au_bout;
+        self.game_distributed.rotate_at(master_player_index);
+        self.petit_au_bout_for_team = petit_au_bout_for_team;
         self.attack_cards += attack_cards;
         self.defense_cards += defense_cards;
         Ok(())
@@ -307,7 +326,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         }
 
         let points_petit_au_bout = 10.0 * self.contract.multiplier();
-        let petit_au_bout_bonus = match self.petit_au_bout {
+        let petit_au_bout_bonus = match self.petit_au_bout_for_team {
             Some(Team::Defense) => {
                 if !self.options.quiet {
                     println!("Petit au bout for defense: -{points_petit_au_bout}");
@@ -345,7 +364,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         }
 
         if !self.options.quiet {
-            println!("Attack handle bonus: {}", handle_bonus);
+            println!("Attack handle bonus: {}", handle_bonus.abs());
             println!("Taker points: {}", points);
             println!(
                 "Taker total points: {}",

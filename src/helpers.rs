@@ -14,35 +14,27 @@ pub fn read_index() -> usize {
     }
 }
 
-// pub fn wait_input() {
-//     use std::io::prelude::*;
-//     let mut stdin = io::stdin();
-//     let _ = stdin.read(&mut [0u8]).unwrap();
-// }
+pub fn wait_input() {
+    use std::io::prelude::*;
+    let mut stdin = io::stdin();
+    let _ = stdin.read(&mut [0u8]).unwrap();
+}
 
-pub fn test_game<const MODE: usize>(options: Options) -> Result<(), TarotErrorKind> {
+pub fn test_game<const MODE: usize>(options: Options, deals: u16) -> Result<(), TarotErrorKind> {
     use crate::game::Game;
-    loop {
+    for _ in 0..deals {
         let mut game: Game<MODE> = Game::new(options)?;
-        match game.distribute() {
-            Err(fail) => {
-                if fail == TarotErrorKind::PetitSec {
-                    continue;
-                } else {
-                    return Err(fail);
-                }
-            }
-            Ok(mut game_distributed) => {
-                if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
-                    while !game_started.finished() {
-                        game_started.play()?;
-                    }
-                    game_started.count_points()?;
-                }
-            }
+        let Some(mut game_distributed) = game.distribute() else {
+            continue;
         };
-        return Ok(());
+        if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
+            while !game_started.finished() {
+                game_started.play()?;
+            }
+            game_started.count_points()?;
+        };
     }
+    Ok(())
 }
 
 pub fn binomial(mut n: usize, mut k: usize) -> usize {

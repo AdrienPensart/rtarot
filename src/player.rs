@@ -30,4 +30,7 @@ impl Player {
     pub fn name(&self) -> &str {
         &self.name
     }
+    pub fn options(&self) -> &Options {
+        &self.options
+    }
 }

@@ -46,10 +46,10 @@ impl fmt::Display for Turn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Turn cards: \n{}", &self.cards.repr())?;
         if let Some(called) = self.called() {
-            write!(f, "\nCalled: {}", &called.symbol())?;
+            write!(f, "\nCalled color: {}", &called.symbol())?;
         }
         if let Some(master) = self.master_card() {
-            write!(f, "\nMaster: {}", &master)?;
+            write!(f, "\nMaster card: {}", &master)?;
         }
         Ok(())
     }

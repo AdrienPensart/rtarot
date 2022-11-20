@@ -4,14 +4,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum TarotErrorKind {
-    #[error("A deck contains only one outsider: the petit.")]
+    #[error("A deck contains only one trump: the petit.")]
     PetitSec,
     #[error("Card is invalid")]
     InvalidCard,
-    #[error("Invalid number of players")]
-    InvalidPlayers,
-    #[error("No contract")]
-    NoContract,
+    #[error("Invalid number of players : {0}")]
+    InvalidPlayers(String),
     #[error("Invalid mode")]
     InvalidMode,
     #[error("Invalid contract")]

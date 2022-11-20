@@ -38,6 +38,10 @@ struct Opts {
     #[arg(value_parser = clap::builder::PossibleValuesParser::new(["3", "4", "5"]), default_value = "4")]
     players: String,
 
+    /// Number of deals per game
+    #[arg(short = 'd', long = "deals", default_value_t = 10)]
+    deals: u16,
+
     /// Random playing mode
     #[arg(short = 'r', long = "random")]
     random: bool,
@@ -70,15 +74,22 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         auto: opt.auto,
         quiet: opt.quiet,
         no_slam: opt.no_slam,
+        test: opt.test,
     };
     if opt.test {
         let mut children = vec![];
         if opt.concurrency == NonZeroUsize::new(1).unwrap() {
             for mode in Mode::iter().cycle() {
                 match mode {
-                    Mode::Three => helpers::test_game::<{ Mode::Three.players() }>(options)?,
-                    Mode::Four => helpers::test_game::<{ Mode::Four.players() }>(options)?,
-                    Mode::Five => helpers::test_game::<{ Mode::Five.players() }>(options)?,
+                    Mode::Three => {
+                        helpers::test_game::<{ Mode::Three.players() }>(options, opt.deals)?
+                    }
+                    Mode::Four => {
+                        helpers::test_game::<{ Mode::Four.players() }>(options, opt.deals)?
+                    }
+                    Mode::Five => {
+                        helpers::test_game::<{ Mode::Five.players() }>(options, opt.deals)?
+                    }
                 }
             }
         } else {
@@ -87,9 +98,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                     println!("Spawned thread {:?}", thread::current());
                     for mode in Mode::iter().cycle() {
                         let result = match mode {
-                            Mode::Three => helpers::test_game::<{ Mode::Three.players() }>(options),
-                            Mode::Four => helpers::test_game::<{ Mode::Four.players() }>(options),
-                            Mode::Five => helpers::test_game::<{ Mode::Five.players() }>(options),
+                            Mode::Three => {
+                                helpers::test_game::<{ Mode::Three.players() }>(options, opt.deals)
+                            }
+                            Mode::Four => {
+                                helpers::test_game::<{ Mode::Four.players() }>(options, opt.deals)
+                            }
+                            Mode::Five => {
+                                helpers::test_game::<{ Mode::Five.players() }>(options, opt.deals)
+                            }
                         };
                         if let Err(e) = result {
                             eprintln!("{:?} : {}", thread::current(), e);
@@ -104,9 +121,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     } else {
         let mode = Mode::from_str(&opt.players);
         match mode {
-            Ok(Mode::Three) => game::Game::<{ Mode::Three.players() }>::new(options)?.start()?,
-            Ok(Mode::Four) => game::Game::<{ Mode::Four.players() }>::new(options)?.start()?,
-            Ok(Mode::Five) => game::Game::<{ Mode::Five.players() }>::new(options)?.start()?,
+            Ok(Mode::Three) => {
+                game::Game::<{ Mode::Three.players() }>::new(options)?.start(opt.deals)?
+            }
+            Ok(Mode::Four) => {
+                game::Game::<{ Mode::Four.players() }>::new(options)?.start(opt.deals)?
+            }
+            Ok(Mode::Five) => {
+                game::Game::<{ Mode::Five.players() }>::new(options)?.start(opt.deals)?
+            }
             Err(e) => eprintln!("{}", e),
         };
     }

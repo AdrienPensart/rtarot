@@ -1,10 +1,8 @@
-use crate::card::Card;
 use crate::contract::Contract;
 use crate::deck::Deck;
 use crate::errors::TarotErrorKind;
 use crate::game::Game;
 use crate::game_started::GameStarted;
-use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
 use crate::player_in_game::PlayerInGame;
@@ -47,8 +45,8 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     pub fn players_and_their_game_mut(&mut self) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
         (self.game.players(), &mut self.players_in_game)
     }
-    pub fn rotate(&mut self, index: usize) {
-        self.players_in_game.rotate_left(index);
+    pub fn player(&self, index: usize) -> &Player {
+        self.game.player(index)
     }
     pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         (self.game.player(index), &self.players_in_game[index])
@@ -58,6 +56,10 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     }
     pub fn finished(&self) -> bool {
         self.players_in_game.iter().all(|player| player.last_turn())
+    }
+    pub fn rotate_at(&mut self, index: usize) {
+        self.players_in_game.rotate_left(index);
+        self.game.rotate_at(index);
     }
     pub fn bidding_and_discard(
         &'a mut self,
@@ -108,14 +110,10 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             if !self.options.quiet {
                 println!("Chelem announced so {slammer} must start.");
             }
-            self.players_in_game.rotate_left(slammer);
+            self.rotate_at(slammer);
         }
 
-        let mut callee: Option<Card> = None;
-        if let Mode::Five = self.game.mode() {
-            callee = Some(self.players_in_game[taker_index].call()?);
-        }
-
+        let callee = self.players_in_game[taker_index].call();
         for (current_player_index, current_player) in self.players_in_game.iter_mut().enumerate() {
             current_player.set_callee(callee);
             current_player.set_team(Team::Defense);
@@ -136,7 +134,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             .iter()
             .enumerate()
             .partition_map(|(i, player)| {
-                if player.team() == Some(Team::Attack) {
+                if player.is_attack() {
                     Either::Left(i)
                 } else {
                     Either::Right(i)
@@ -144,7 +142,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             });
 
         for attacker_index in attackers {
-            if self.players_in_game[attacker_index].role() != Some(Role::Taker) {
+            if !self.players_in_game[attacker_index].is_taker() {
                 continue;
             }
 

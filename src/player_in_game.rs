@@ -48,7 +48,9 @@ pub struct PlayerInGame {
 
 impl fmt::Display for PlayerInGame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Slam: {}", self.slam)?;
+        if self.slam {
+            write!(f, "Slam: {}", self.slam)?;
+        }
         if let Some(role) = &self.role {
             write!(f, ", Role : {}", role)?;
         }
@@ -105,14 +107,20 @@ impl PlayerInGame {
     pub fn extend_owned(&mut self, deck: &Deck) {
         self.owned.extend(deck);
     }
-    pub fn role(&self) -> Option<Role> {
-        self.role
+    pub fn is_taker(&self) -> bool {
+        self.role == Some(Role::Taker)
     }
-    pub fn team(&self) -> Option<Team> {
-        self.team
+    pub fn role(&self) -> &Option<Role> {
+        &self.role
     }
-    pub fn handle(&self) -> Option<Handle> {
-        self.handle
+    pub fn is_attack(&self) -> bool {
+        self.team == Some(Team::Attack)
+    }
+    pub fn team(&self) -> &Option<Team> {
+        &self.team
+    }
+    pub fn handle(&self) -> &Option<Handle> {
+        &self.handle
     }
     pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
         self.owned.points_for_oudlers()
@@ -134,17 +142,16 @@ impl PlayerInGame {
         }
 
         if self.is_first_turn() {
+            assert_eq!(self.hand.len(), self.mode.cards_per_player());
             self.announce_handle();
         }
         if !self.options.quiet {
             println!("Hand of {} : {}", player.name(), self.hand);
             println!("Choices :");
         }
+
         let possible_choices = &self.choices(turn)?;
-        if possible_choices.is_empty() {
-            eprintln!("No possible choices available, invalid case.");
-            return Err(TarotErrorKind::InvalidCase);
-        }
+        assert!(!possible_choices.is_empty());
 
         if !self.options.quiet {
             for &possible_choice in possible_choices {
@@ -181,14 +188,10 @@ impl PlayerInGame {
         player: &Player,
         contracts: &Vec<Contract>,
     ) -> Option<Contract> {
-        if self.options.auto && contracts.len() == 1 {
-            if !self.options.quiet {
-                println!("{} : auto pass", player.name());
-            }
-            return None;
-        }
-
-        if self.options.random {
+        let player_name = player.name();
+        let contract = if self.options.auto && contracts.len() == 1 {
+            None
+        } else if self.options.random {
             let random_choice_index = rand::thread_rng().gen_range(0..contracts.len() + 1);
             if random_choice_index == 0 {
                 return None;
@@ -197,8 +200,8 @@ impl PlayerInGame {
         } else {
             loop {
                 if !self.options.quiet {
-                    println!("{} must play : {}", &self, &self.hand);
-                    println!("Choose a contract, possibilities :");
+                    println!("{player_name} must play : {}", &self.hand);
+                    println!("{player_name} choose a contract, possibilities :");
                     println!("\tPass : press 0");
                     for (contract_index, contract) in contracts.iter().enumerate() {
                         println!(
@@ -211,15 +214,21 @@ impl PlayerInGame {
                 }
                 let contract_index = read_index();
                 if contract_index == 0 {
-                    return None;
-                }
-                if contract_index < contracts.len() + 1 {
+                    break None;
+                } else if contract_index < contracts.len() + 1 {
                     break Some(contracts[contract_index - 1]);
                 } else if !self.options.quiet {
                     println!("Error, please retry");
                 }
             }
+        };
+        if !self.options.quiet {
+            println!(
+                "{player_name} : {:?} (auto? : {})",
+                contract, self.options.auto
+            );
         }
+        contract
     }
     pub fn slam_bonus(&self) -> f64 {
         if self.slam {
@@ -304,11 +313,9 @@ impl PlayerInGame {
                             );
                             for (handle_index, handle) in handles.iter().enumerate() {
                                 println!(
-                                    "{} handle (needs: {} trumps, points: {}) : press {}",
-                                    handle,
+                                    "{handle} handle (needs: {} trumps, points: {}) : press {handle_index}",
                                     self.mode.handle_limit(handle),
-                                    handle,
-                                    handle_index
+                                    handle.points(),
                                 );
                             }
                         }
@@ -337,11 +344,10 @@ impl PlayerInGame {
                             loop {
                                 if !self.options.quiet {
                                     for (i, a) in trumps.iter().enumerate() {
-                                        println!("\t{0} : {1}", &i, &a);
+                                        println!("\t{i} : {a}");
                                     }
                                     println!(
-                                        "You must discards {} trumps to present only {}",
-                                        &to_discard, &limit
+                                        "You must discards {to_discard} trumps to present only {limit}"
                                     );
                                 }
                                 if self.options.random {
@@ -374,12 +380,6 @@ impl PlayerInGame {
             }
         };
     }
-    pub fn last_turn(&self) -> bool {
-        self.hand.is_empty()
-    }
-    pub fn before_last_turn(&self) -> bool {
-        self.hand.len() == 1
-    }
     pub fn owe_card(&self) -> bool {
         self.owned.has_fool()
             && self.owned.len() > 1
@@ -397,26 +397,32 @@ impl PlayerInGame {
         self.owned.count_oudlers()
     }
     pub fn is_first_turn(&self) -> bool {
-        match self.mode {
-            Mode::Three => self.hand.len() == 24,
-            Mode::Four => self.hand.len() == 18,
-            Mode::Five => self.hand.len() == 15,
-        }
+        self.mode.cards_per_player() == self.hand.len()
     }
-    pub fn call(&self) -> Result<Card, TarotErrorKind> {
+    pub fn last_turn(&self) -> bool {
+        self.hand.is_empty()
+    }
+    pub fn before_last_turn(&self) -> bool {
+        self.hand.len() == 1
+    }
+    pub fn call(&self) -> Option<Card> {
         if self.mode != Mode::Five {
-            return Err(TarotErrorKind::InvalidMode);
+            return None;
         }
+
         let mut value_callable: Vec<SuitValue> = vec![SuitValue::King];
         if self.hand.count_tete(SuitValue::King) == 4 {
+            // player has all kings, he could call queens !
             value_callable.push(SuitValue::Queen);
             if self.hand.count_tete(SuitValue::Queen) == 4 {
+                // ok he's got all queens too, so he could call knights no ?
                 value_callable.push(SuitValue::Knight);
                 if self.hand.count_tete(SuitValue::Knight) == 4 {
                     value_callable.push(SuitValue::Jack);
                     if self.hand.count_tete(SuitValue::Jack) == 4 {
-                        eprintln!("Case too rare, taker has all kings, all queens and all knights");
-                        return Err(TarotErrorKind::InvalidCase);
+                        panic!(
+                            "Impossible case, taker cannot have all kings, queens, knights, jacks"
+                        );
                     }
                 }
             }
@@ -426,7 +432,7 @@ impl PlayerInGame {
             .map(|(c, cv)| Card::normal(c, *cv))
             .collect();
         if self.options.random {
-            Ok(choices[rand::thread_rng().gen_range(0..choices.len())])
+            Some(choices[rand::thread_rng().gen_range(0..choices.len())])
         } else {
             loop {
                 if !self.options.quiet {
@@ -439,7 +445,7 @@ impl PlayerInGame {
                 }
                 let choice_index = read_index();
                 if choice_index < choices.len() {
-                    break Ok(choices[choice_index]);
+                    break Some(choices[choice_index]);
                 } else if !self.options.quiet {
                     println!("Error, please retry")
                 }
@@ -466,7 +472,7 @@ impl PlayerInGame {
                         for &i in &discardables_indexes {
                             println!("\t{0: <4} : press {1}", self.hand[i], i);
                         }
-                        println!("Currently discarded: {}", self.owned);
+                        println!("Choose discard : {}", self.owned);
                     }
                     let discard_index = read_index();
                     if discardables_indexes.contains(&discard_index) {
@@ -476,10 +482,11 @@ impl PlayerInGame {
                     }
                 }
             };
+            let discarded = self.hand.remove(discard_index);
+            self.discard.push(discarded);
             if !self.options.quiet {
-                println!("Discarded : {}", self.hand[discard_index]);
+                println!("Discarded : {}", self.discard);
             }
-            self.discard.push(self.hand.remove(discard_index));
         }
 
         if !self.options.quiet {
@@ -597,7 +604,7 @@ impl PlayerInGame {
                 eprintln!("There cannot be no called color and a master, impossible case!");
                 return Err(TarotErrorKind::InvalidCase);
             }
-            // RULE: first player can put the callee but no any other card in the same color
+            // RULE: first player can put the callee card but no any other card in the same color
             (None, None) => match (self.is_first_turn(), self.mode) {
                 (true, Mode::Five) => self
                     .hand
@@ -605,7 +612,8 @@ impl PlayerInGame {
                     .enumerate()
                     .filter(|(_, &card)| match (card, self.callee) {
                         (Card::Normal(normal), Some(Card::Normal(callee_normal))) => {
-                            callee_normal.suit() != normal.suit() || normal.value() == callee_normal.value()
+                            callee_normal.suit() != normal.suit()
+                                || normal.value() == callee_normal.value()
                         }
                         _ => true,
                     })

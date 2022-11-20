@@ -79,7 +79,9 @@ impl Card {
         match (&self, &arg) {
             (Self::Trump(c), Self::Normal(_)) => c != &Trump::Fool,
             (Self::Normal(_), Self::Trump(c)) => c == &Trump::Fool,
-            (Self::Normal(n1), Self::Normal(n2)) => n1.suit() != n2.suit() || n1.value() > n2.value(),
+            (Self::Normal(n1), Self::Normal(n2)) => {
+                n1.suit() != n2.suit() || n1.value() > n2.value()
+            }
             (Self::Trump(v1), Self::Trump(v2)) => v1 > v2,
         }
     }

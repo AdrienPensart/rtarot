@@ -5,7 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 use strum::EnumIter;
 
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, EnumIter)]
 pub enum Mode {
     Three,
     #[default]
@@ -30,7 +30,7 @@ impl TryFrom<usize> for Mode {
             3 => Ok(Self::Three),
             4 => Ok(Self::Four),
             5 => Ok(Self::Five),
-            _ => Err(TarotErrorKind::InvalidPlayers),
+            _ => Err(Self::Error::InvalidPlayers(value.to_string())),
         }
     }
 }
@@ -42,7 +42,7 @@ impl FromStr for Mode {
             "3" | "three" => Ok(Self::Three),
             "4" | "four" => Ok(Self::Four),
             "5" | "five" => Ok(Self::Five),
-            _ => Err(TarotErrorKind::InvalidPlayers),
+            _ => Err(Self::Err::InvalidPlayers(s.into())),
         }
     }
 }
@@ -54,9 +54,6 @@ impl Mode {
             Self::Four => 4,
             Self::Five => 5,
         }
-    }
-    pub const fn default() -> Self {
-        Self::Four
     }
     pub const fn ratio(&self, with_ally: bool) -> OrderedFloat<f64> {
         let ratio = match self {
@@ -90,6 +87,9 @@ impl Mode {
             Self::Four => 18,
             Self::Five => 15,
         }
+    }
+    pub const fn max_cards_for_taker(&self) -> usize {
+        self.dog_size() + self.cards_per_player()
     }
     pub const fn player_name(&self, index: usize) -> &'static str {
         match self {
