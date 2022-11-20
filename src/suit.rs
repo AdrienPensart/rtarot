@@ -5,7 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 use strum::EnumIter;
 
-#[derive(Hash, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum Suit {
     Heart,
     Spade,

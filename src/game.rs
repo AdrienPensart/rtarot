@@ -124,7 +124,7 @@ impl<const MODE: usize> Game<MODE> {
         } else {
             self.dealer += 1;
         }
-        self.players.rotate_left(self.dealer);
+        self.rotate_at(self.dealer);
     }
 }
 

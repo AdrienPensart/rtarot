@@ -24,13 +24,13 @@ impl Player {
     pub fn add_score(&mut self, points: OrderedFloat<f64>) {
         self.score += points
     }
-    pub fn score(&self) -> OrderedFloat<f64> {
+    pub const fn score(&self) -> OrderedFloat<f64> {
         self.score
     }
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn options(&self) -> &Options {
+    pub const fn options(&self) -> &Options {
         &self.options
     }
 }

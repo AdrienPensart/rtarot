@@ -60,16 +60,13 @@ impl Card {
     pub fn normal(suit: Suit, value: SuitValue) -> Self {
         Self::Normal(Normal::new(suit, value))
     }
-    pub fn is_fool(self) -> bool {
-        match self {
-            Self::Trump(v) => v == Trump::Fool,
-            _ => false,
-        }
+    pub const fn is_fool(self) -> bool {
+        matches!(self, Self::Trump(Trump::Fool))
     }
-    pub fn is_trump(self) -> bool {
+    pub const fn is_trump(self) -> bool {
         matches!(self, Self::Trump(_))
     }
-    pub fn is_oudler(self) -> bool {
+    pub const fn is_oudler(self) -> bool {
         match self {
             Self::Trump(c) => c.is_oudler(),
             _ => false,
