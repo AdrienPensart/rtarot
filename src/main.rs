@@ -28,6 +28,7 @@ pub mod traits;
 pub mod trump;
 pub mod turn;
 
+use crate::game::launch_game;
 use crate::mode::Mode;
 use crate::options::Options;
 
@@ -83,59 +84,25 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     };
     if opt.test {
         let mut children = vec![];
-        if opt.concurrency == NonZeroUsize::new(1).unwrap() {
-            for mode in Mode::iter().cycle() {
-                match mode {
-                    Mode::Three => {
-                        helpers::test_game::<{ Mode::Three.players() }>(options, opt.deals)?
-                    }
-                    Mode::Four => {
-                        helpers::test_game::<{ Mode::Four.players() }>(options, opt.deals)?
-                    }
-                    Mode::Five => {
-                        helpers::test_game::<{ Mode::Five.players() }>(options, opt.deals)?
+        for _ in 0..opt.concurrency.get() {
+            children.push(thread::spawn(move || {
+                println!("Spawned thread {:?}", thread::current());
+                for mode in Mode::iter().cycle() {
+                    let result = launch_game(mode, options, opt.deals);
+                    if let Err(e) = result {
+                        eprintln!("{:?} : {}", thread::current(), e);
                     }
                 }
-            }
-        } else {
-            for _ in 0..opt.concurrency.get() {
-                children.push(thread::spawn(move || {
-                    println!("Spawned thread {:?}", thread::current());
-                    for mode in Mode::iter().cycle() {
-                        let result = match mode {
-                            Mode::Three => {
-                                helpers::test_game::<{ Mode::Three.players() }>(options, opt.deals)
-                            }
-                            Mode::Four => {
-                                helpers::test_game::<{ Mode::Four.players() }>(options, opt.deals)
-                            }
-                            Mode::Five => {
-                                helpers::test_game::<{ Mode::Five.players() }>(options, opt.deals)
-                            }
-                        };
-                        if let Err(e) = result {
-                            eprintln!("{:?} : {}", thread::current(), e);
-                        }
-                    }
-                }));
-            }
-            for child in children {
-                let _ = child.join();
-            }
+            }));
+        }
+        for child in children {
+            let _ = child.join();
         }
     } else {
-        let mode = Mode::from_str(&opt.players);
-        match mode {
-            Ok(Mode::Three) => {
-                game::Game::<{ Mode::Three.players() }>::new(options)?.start(opt.deals)?
-            }
-            Ok(Mode::Four) => {
-                game::Game::<{ Mode::Four.players() }>::new(options)?.start(opt.deals)?
-            }
-            Ok(Mode::Five) => {
-                game::Game::<{ Mode::Five.players() }>::new(options)?.start(opt.deals)?
-            }
-            Err(e) => eprintln!("{}", e),
+        let mode = Mode::from_str(&opt.players)?;
+        let result = launch_game(mode, options, opt.deals);
+        if let Err(e) = result {
+            eprintln!("{}", e);
         };
     }
     Ok(())

@@ -1,5 +1,3 @@
-use crate::errors::TarotErrorKind;
-use crate::options::Options;
 use std::io;
 
 #[allow(clippy::redundant_closure)]
@@ -18,23 +16,6 @@ pub fn wait_input() {
     use std::io::prelude::*;
     let mut stdin = io::stdin();
     let _ = stdin.read(&mut [0u8]).unwrap();
-}
-
-pub fn test_game<const MODE: usize>(options: Options, deals: u16) -> Result<(), TarotErrorKind> {
-    use crate::game::Game;
-    for _ in 0..deals {
-        let mut game: Game<MODE> = Game::new(options)?;
-        let Some(mut game_distributed) = game.distribute() else {
-            continue;
-        };
-        if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
-            while !game_started.finished() {
-                game_started.play()?;
-            }
-            game_started.count_points()?;
-        };
-    }
-    Ok(())
 }
 
 pub fn binomial(mut n: usize, mut k: usize) -> usize {

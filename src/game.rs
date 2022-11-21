@@ -18,6 +18,20 @@ pub struct Game<const MODE: usize> {
     dealer: usize,
 }
 
+pub fn launch_game(mode: Mode, options: Options, deals: u16) -> Result<(), TarotErrorKind> {
+    if mode == Mode::Three {
+        Game::<{ Mode::Three.players() }>::new(options)?.start(deals)?;
+        return Ok(());
+    } else if mode == Mode::Four {
+        Game::<{ Mode::Four.players() }>::new(options)?.start(deals)?;
+        return Ok(());
+    } else if mode == Mode::Five {
+        Game::<{ Mode::Five.players() }>::new(options)?.start(deals)?;
+        return Ok(());
+    }
+    Ok(())
+}
+
 impl<const MODE: usize> fmt::Display for Game<MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Players : ")?;
@@ -133,16 +147,17 @@ impl<const MODE: usize> Game<MODE> {
 
 #[test]
 fn game_tests() {
-    use crate::helpers::test_game;
     use crate::mode::Mode;
+    use strum::IntoEnumIterator;
     let options = Options {
         random: true,
         test: true,
         auto: true,
         quiet: true,
         no_slam: false,
+        attack: false,
     };
-    test_game::<{ Mode::Three.players() }>(options, 1).unwrap();
-    test_game::<{ Mode::Four.players() }>(options, 1).unwrap();
-    test_game::<{ Mode::Five.players() }>(options, 1).unwrap();
+    for mode in Mode::iter().cycle() {
+        launch_game(mode, options, 1).unwrap();
+    }
 }
