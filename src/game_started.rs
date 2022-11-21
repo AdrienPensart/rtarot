@@ -278,13 +278,13 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         let taker_index = self.taker_index;
         if let Some(ally_index) = ally_index {
             let (players, players_in_game) = self.players_and_their_game_mut();
-            let ally = &players[ally_index].name();
+            let ally_name = &players[ally_index].name();
             let ally_in_game = &mut players_in_game[ally_index];
             let ally_cards = ally_in_game.all_cards();
-            let taker = &players[taker_index].name();
+            let taker_name = &players[taker_index].name();
             let taker_in_game = &mut players_in_game[taker_index];
             if !quiet {
-                println!("{ally} gives his card to {taker}")
+                println!("{ally_name} gives his card to {taker_name}")
             }
             taker_in_game.extend_owned(&ally_cards)
         }

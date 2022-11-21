@@ -5,4 +5,5 @@ pub struct Options {
     pub quiet: bool,
     pub no_slam: bool,
     pub test: bool,
+    pub attack: bool,
 }

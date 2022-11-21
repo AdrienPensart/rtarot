@@ -122,7 +122,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                 current_player.set_team(Team::Attack);
                 current_player.set_role(Role::Taker);
             } else if let Some(ref card) = callee {
-                if current_player.has(card) {
+                if current_player_index != taker_index && current_player.has(card) {
                     current_player.set_team(Team::Attack);
                     current_player.set_role(Role::Ally);
                 }
@@ -148,16 +148,24 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
 
             match contract {
                 Contract::GardeSans => {
+                    if !self.options.quiet {
+                        println!("Attacker keeps dog because GardeSans");
+                    }
                     self.players_in_game[attacker_index].set_discard(&self.dog);
                 }
                 Contract::GardeContre => {
                     if let Some(first_defenser_index) = defensers.first() {
+                        if !self.options.quiet {
+                            println!("Attacker gives dog to first defenser because GardeContre");
+                        }
                         self.players_in_game[*first_defenser_index].set_discard(&self.dog);
                     }
                 }
                 _ => {
                     if !self.options.quiet {
+                        let taker_name = self.player(attacker_index).name();
                         println!("In the dog, there was : {}", self.dog);
+                        println!("Taker {taker_name} received the dog");
                     }
                     self.players_in_game[attacker_index].extend_hand(&self.dog);
                     self.players_in_game[attacker_index].discard();

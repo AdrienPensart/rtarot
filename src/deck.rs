@@ -13,7 +13,7 @@ use crate::errors::TarotErrorKind;
 use crate::points::{HasPoints, MAX_CARDS, MAX_POINTS, MAX_POINTS_WITHOUT_FOOL};
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
-use crate::traits::{Colored, Discardable, Representation};
+use crate::traits::{Discardable, Representation};
 use crate::trump::Trump;
 
 #[derive(new, Default, PartialEq, Eq, Clone, Debug, IntoIterator, Index, Deref)]
@@ -190,13 +190,10 @@ impl Deck {
     pub fn sort(&mut self) {
         self.0.sort();
     }
-}
-
-impl Representation for Deck {
-    fn repr(&self) -> ColoredString {
+    pub fn full_repr(&self) -> ColoredString {
         let mut buffers: BTreeMap<usize, String> = BTreeMap::new();
         for card in self.iter() {
-            for (index, line) in card.repr().lines().enumerate() {
+            for (index, line) in card.full_repr().lines().enumerate() {
                 let line_and_reset = format!("{}\x1B[0m", &line.color(card.color()));
                 buffers
                     .entry(index)
@@ -228,5 +225,5 @@ fn deck_tests() {
         Card::Trump(Trump::Fool),
     ];
     let test_stack = Deck(two_cards);
-    println!("{}", test_stack.repr());
+    println!("{}", test_stack.full_repr());
 }

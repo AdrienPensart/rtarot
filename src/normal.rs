@@ -1,18 +1,23 @@
 use crate::points::HasPoints;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
-use crate::traits::{Colored, Discardable, Power, Representation, Symbol};
+use crate::traits::{Discardable, Power, Representation};
 use colored::{ColoredString, Colorize};
-use derive_more::Display;
 use derive_new::new;
 use ordered_float::OrderedFloat;
 use regex::Regex;
+use std::fmt;
 
-#[derive(new, Display, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[display(fmt = "{}{}", value, suit)]
+#[derive(new, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Normal {
     suit: Suit,
     value: SuitValue,
+}
+
+impl fmt::Display for Normal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.value(), self.colored_symbol())
+    }
 }
 
 impl Normal {
@@ -45,22 +50,22 @@ impl Discardable for Normal {
     }
 }
 
-impl Colored for Normal {
+impl Representation for Normal {
+    fn symbol(&self) -> &'static str {
+        self.suit.symbol()
+    }
+    fn colored_symbol(&self) -> ColoredString {
+        self.symbol().color(self.color())
+    }
     fn color(&self) -> &'static str {
         self.suit.color()
     }
-}
-
-impl Symbol for Normal {
-    fn symbol(&self) -> ColoredString {
-        self.suit.symbol()
-    }
-}
-
-impl Representation for Normal {
     fn repr(&self) -> ColoredString {
+        self.colored_symbol()
+    }
+    fn full_repr(&self) -> ColoredString {
         let re = Regex::new(r"[\*]").unwrap();
-        re.replace_all(&self.value.repr(), format!("{}", self.suit))
+        re.replace_all(&self.value.full_repr(), format!("{}", self.suit))
             .color(self.color())
     }
 }

@@ -9,14 +9,10 @@ pub trait Discardable {
     fn discardable_forced(&self) -> bool;
 }
 
-pub trait Symbol {
-    fn symbol(&self) -> ColoredString;
-}
-
 pub trait Representation {
-    fn repr(&self) -> ColoredString;
-}
-
-pub trait Colored {
     fn color(&self) -> &'static str;
+    fn colored_symbol(&self) -> ColoredString;
+    fn symbol(&self) -> &'static str;
+    fn repr(&self) -> ColoredString;
+    fn full_repr(&self) -> ColoredString;
 }

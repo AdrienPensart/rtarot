@@ -42,6 +42,10 @@ struct Opts {
     #[arg(short = 'd', long = "deals", default_value_t = 10)]
     deals: u16,
 
+    /// Attack mode
+    #[arg(long = "attack")]
+    attack: bool,
+
     /// Random playing mode
     #[arg(short = 'r', long = "random")]
     random: bool,
@@ -74,6 +78,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         auto: opt.auto,
         quiet: opt.quiet,
         no_slam: opt.no_slam,
+        attack: opt.attack,
         test: opt.test,
     };
     if opt.test {

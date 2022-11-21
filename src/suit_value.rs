@@ -6,7 +6,7 @@ use ordered_float::OrderedFloat;
 use std::fmt;
 use strum::EnumIter;
 
-#[derive(Hash, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum SuitValue {
     _1 = 1,
     _2 = 2,
@@ -26,13 +26,7 @@ pub enum SuitValue {
 
 impl fmt::Display for SuitValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Jack => write!(f, "V"),
-            Self::Knight => write!(f, "C"),
-            Self::Queen => write!(f, "Q"),
-            Self::King => write!(f, "K"),
-            _ => write!(f, "{}", *self as usize),
-        }
+        write!(f, "{}", self.colored_symbol())
     }
 }
 
@@ -61,7 +55,34 @@ impl HasPoints for SuitValue {
 }
 
 impl Representation for SuitValue {
+    fn color(&self) -> &'static str {
+        "normal"
+    }
+    fn symbol(&self) -> &'static str {
+        match self {
+            Self::Jack => "V",
+            Self::Knight => "C",
+            Self::Queen => "Q",
+            Self::King => "K",
+            Self::_1 => "1",
+            Self::_2 => "2",
+            Self::_3 => "3",
+            Self::_4 => "4",
+            Self::_5 => "5",
+            Self::_6 => "6",
+            Self::_7 => "7",
+            Self::_8 => "8",
+            Self::_9 => "9",
+            Self::_10 => "10",
+        }
+    }
+    fn colored_symbol(&self) -> ColoredString {
+        self.symbol().color(self.color())
+    }
     fn repr(&self) -> ColoredString {
+        self.symbol().normal()
+    }
+    fn full_repr(&self) -> ColoredString {
         let base = match self {
             Self::_1 => indoc! {r#"
             ****************

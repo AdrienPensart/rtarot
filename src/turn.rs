@@ -1,6 +1,6 @@
 use crate::card::Card;
 use crate::deck::Deck;
-use crate::traits::{Representation, Symbol};
+use crate::traits::Representation;
 use std::fmt;
 
 #[derive(Debug, Default)]
@@ -44,12 +44,12 @@ impl Turn {
 
 impl fmt::Display for Turn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Turn cards: \n{}", &self.cards.repr())?;
+        write!(f, "Turn cards: \n{}", self.cards.full_repr())?;
         if let Some(called) = self.called() {
-            write!(f, "\nCalled color: {}", &called.symbol())?;
+            write!(f, "\nCalled color: {}", called.colored_symbol())?;
         }
         if let Some(master) = self.master_card() {
-            write!(f, "\nMaster card: {}", &master)?;
+            write!(f, "\nMaster card: {}", master)?;
         }
         Ok(())
     }

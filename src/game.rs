@@ -67,15 +67,18 @@ impl<const MODE: usize> Game<MODE> {
     pub fn players(&self) -> &[Player; MODE] {
         &self.players
     }
-    pub fn start(mut self, deals: u16) -> Result<(), TarotErrorKind> {
-        for _ in 0..deals {
+    pub fn start(mut self, mut deals: u16) -> Result<(), TarotErrorKind> {
+        while deals > 0 {
+            if !self.options.quiet {
+                println!("Deals left : {deals}");
+            }
             if let Some(mut game_distributed) = self.distribute() {
                 if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
                     while !game_started.finished() {
                         game_started.play()?;
                     }
                     game_started.count_points()?;
-                    break;
+                    deals -= 1;
                 } else if !self.options.quiet {
                     println!("Everyone passed !");
                 }

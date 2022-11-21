@@ -20,7 +20,7 @@ use crate::role::Role;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
 use crate::team::Team;
-use crate::traits::Symbol;
+use crate::traits::Representation;
 use crate::trump::Trump;
 use crate::turn::Turn;
 
@@ -48,17 +48,17 @@ pub struct PlayerInGame {
 
 impl fmt::Display for PlayerInGame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.slam {
-            write!(f, "Slam: {}", self.slam)?;
-        }
         if let Some(role) = &self.role {
-            write!(f, ", Role : {}", role)?;
+            writeln!(f, "Role : {role}")?;
         }
         if let Some(team) = &self.team {
-            write!(f, ", Team : {}", team)?;
+            writeln!(f, "Team : {team}")?;
         }
         if let Some(callee) = &self.callee {
-            write!(f, ", Callee : {}", callee)?;
+            writeln!(f, "Callee : {callee}")?;
+        }
+        if self.slam {
+            writeln!(f, "Slam: {}", self.slam)?;
         }
         Ok(())
     }
@@ -145,14 +145,15 @@ impl PlayerInGame {
             assert_eq!(self.hand.len(), self.mode.cards_per_player());
             self.announce_handle();
         }
+
+        let player_name = player.name();
         if !self.options.quiet {
-            println!("Hand of {} : {}", player.name(), self.hand);
-            println!("Choices :");
+            println!("{player_name} with hand : {}", self.hand);
+            println!("Must play one card, choices :");
         }
 
         let possible_choices = &self.choices(turn)?;
         assert!(!possible_choices.is_empty());
-
         if !self.options.quiet {
             for &possible_choice in possible_choices {
                 println!(
@@ -161,7 +162,11 @@ impl PlayerInGame {
                 );
             }
             if let Some(called) = turn.called() {
-                println!("{} must play color {}", player.name(), called.symbol())
+                println!(
+                    "{} must play color {}",
+                    player.name(),
+                    called.colored_symbol()
+                )
             } else {
                 println!("{} is first to play:", player.name())
             }
@@ -190,18 +195,21 @@ impl PlayerInGame {
     ) -> Option<Contract> {
         let player_name = player.name();
         let contract = if self.options.auto && contracts.len() == 1 {
-            None
+            return None;
         } else if self.options.random {
+            if self.options.attack {
+                return None;
+            }
             let random_choice_index = rand::thread_rng().gen_range(0..contracts.len() + 1);
             if random_choice_index == 0 {
                 return None;
             }
-            Some(contracts[random_choice_index - 1])
+            contracts[random_choice_index - 1]
         } else {
             loop {
                 if !self.options.quiet {
-                    println!("{player_name} must play : {}", &self.hand);
-                    println!("{player_name} choose a contract, possibilities :");
+                    println!("{player_name} with hand : {}", &self.hand);
+                    println!("{player_name} must choose a contract, possibilities :");
                     println!("\tPass : press 0");
                     for (contract_index, contract) in contracts.iter().enumerate() {
                         println!(
@@ -214,21 +222,18 @@ impl PlayerInGame {
                 }
                 let contract_index = read_index();
                 if contract_index == 0 {
-                    break None;
+                    return None;
                 } else if contract_index < contracts.len() + 1 {
-                    break Some(contracts[contract_index - 1]);
+                    break contracts[contract_index - 1];
                 } else if !self.options.quiet {
                     println!("Error, please retry");
                 }
             }
         };
         if !self.options.quiet {
-            println!(
-                "{player_name} : {:?} (auto? : {})",
-                contract, self.options.auto
-            );
+            println!("{player_name} : {contract} (auto? : {})", self.options.auto);
         }
-        contract
+        Some(contract)
     }
     pub fn slam_bonus(&self) -> f64 {
         if self.slam {
@@ -431,8 +436,8 @@ impl PlayerInGame {
             .cartesian_product(value_callable.iter())
             .map(|(c, cv)| Card::normal(c, *cv))
             .collect();
-        if self.options.random {
-            Some(choices[rand::thread_rng().gen_range(0..choices.len())])
+        let callee = if self.options.random {
+            choices[rand::thread_rng().gen_range(0..choices.len())]
         } else {
             loop {
                 if !self.options.quiet {
@@ -445,12 +450,16 @@ impl PlayerInGame {
                 }
                 let choice_index = read_index();
                 if choice_index < choices.len() {
-                    break Some(choices[choice_index]);
+                    break choices[choice_index];
                 } else if !self.options.quiet {
                     println!("Error, please retry")
                 }
             }
+        };
+        if !self.options.quiet {
+            println!("Called card for ally is {}", callee);
         }
+        Some(callee)
     }
     pub fn discard(&mut self) {
         if !self.options.quiet {

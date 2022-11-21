@@ -1,9 +1,10 @@
-use crate::errors::TarotErrorKind;
-use crate::traits::{Colored, Representation, Symbol};
 use colored::{ColoredString, Colorize};
 use std::fmt;
 use std::str::FromStr;
 use strum::EnumIter;
+
+use crate::errors::TarotErrorKind;
+use crate::traits::Representation;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, EnumIter)]
 pub enum Suit {
@@ -19,24 +20,24 @@ impl fmt::Display for Suit {
     }
 }
 
-impl Symbol for Suit {
-    fn symbol(&self) -> ColoredString {
+impl Representation for Suit {
+    fn symbol(&self) -> &'static str {
         match self {
-            Self::Spade => "♠".color(self.color()),
-            Self::Diamond => "♦".color(self.color()),
-            Self::Club => "♣".color(self.color()),
-            Self::Heart => "♥".color(self.color()),
+            Self::Spade => "♠",
+            Self::Diamond => "♦",
+            Self::Club => "♣",
+            Self::Heart => "♥",
         }
     }
-}
-
-impl Representation for Suit {
-    fn repr(&self) -> ColoredString {
-        self.symbol()
+    fn colored_symbol(&self) -> ColoredString {
+        self.symbol().color(self.color())
     }
-}
-
-impl Colored for Suit {
+    fn repr(&self) -> ColoredString {
+        self.symbol().color(self.color())
+    }
+    fn full_repr(&self) -> ColoredString {
+        self.repr()
+    }
     fn color(&self) -> &'static str {
         match self {
             Self::Spade => "blue",

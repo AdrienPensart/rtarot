@@ -2,7 +2,7 @@ use crate::normal::Normal;
 use crate::points::HasPoints;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
-use crate::traits::{Colored, Discardable, Power, Representation, Symbol};
+use crate::traits::{Discardable, Power, Representation};
 use crate::trump::Trump;
 use colored::ColoredString;
 use ordered_float::OrderedFloat;
@@ -84,29 +84,35 @@ impl Card {
     }
 }
 
-impl Symbol for Card {
-    fn symbol(&self) -> ColoredString {
+impl Representation for Card {
+    fn symbol(&self) -> &'static str {
         match self {
             Self::Normal(n) => n.symbol(),
             Self::Trump(t) => t.symbol(),
         }
     }
-}
-
-impl Colored for Card {
+    fn colored_symbol(&self) -> ColoredString {
+        match self {
+            Self::Normal(n) => n.colored_symbol(),
+            Self::Trump(t) => t.colored_symbol(),
+        }
+    }
     fn color(&self) -> &'static str {
         match self {
             Self::Normal(n) => n.color(),
             Self::Trump(t) => t.color(),
         }
     }
-}
-
-impl Representation for Card {
     fn repr(&self) -> ColoredString {
         match self {
             Self::Normal(n) => n.repr(),
             Self::Trump(t) => t.repr(),
+        }
+    }
+    fn full_repr(&self) -> ColoredString {
+        match self {
+            Self::Normal(n) => n.full_repr(),
+            Self::Trump(t) => t.full_repr(),
         }
     }
 }
