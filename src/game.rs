@@ -157,7 +157,7 @@ fn game_tests() {
         no_slam: false,
         attack: false,
     };
-    for mode in Mode::iter().cycle() {
+    for mode in Mode::iter() {
         launch_game(mode, options, 1).unwrap();
     }
 }
