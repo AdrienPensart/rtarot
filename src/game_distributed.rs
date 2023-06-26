@@ -32,12 +32,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         players_in_game: [PlayerInGame; MODE],
         options: Options,
     ) -> Self {
-        Self {
-            game,
-            players_in_game,
-            dog,
-            options,
-        }
+        Self { game, options, dog, players_in_game }
     }
     pub fn game(&mut self) -> &mut Game<MODE> {
         self.game
@@ -45,9 +40,11 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     pub fn players_and_their_game_mut(&mut self) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
         (self.game.players(), &mut self.players_in_game)
     }
+    #[must_use]
     pub fn player(&self, index: usize) -> &Player {
         self.game.player(index)
     }
+    #[must_use]
     pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         (self.game.player(index), &self.players_in_game[index])
     }
@@ -55,7 +52,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         (self.game.player(index), &mut self.players_in_game[index])
     }
     pub fn finished(&self) -> bool {
-        self.players_in_game.iter().all(|player| player.last_turn())
+        self.players_in_game.iter().all(PlayerInGame::last_turn)
     }
     pub fn rotate_at(&mut self, index: usize) {
         self.players_in_game.rotate_left(index);
@@ -76,8 +73,8 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             let player_contract =
                 current_player_in_game.choose_contract_among(current_player, &contracts);
             match (contract, player_contract) {
-                (None, None) | (Some(_), None) => {}
-                (None, Some(player_contract)) | (Some(_), Some(player_contract)) => {
+                (None | Some(_), None) => {}
+                (None | Some(_), Some(player_contract)) => {
                     taker_index = Some(current_player_index);
                     if !self.options.quiet {
                         println!(

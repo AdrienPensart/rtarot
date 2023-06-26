@@ -36,7 +36,7 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Players : ")?;
         for player in self.players.iter() {
-            writeln!(f, "\t{}", player)?;
+            writeln!(f, "\t{player}")?;
         }
         Ok(())
     }
@@ -64,21 +64,24 @@ impl<const MODE: usize> Game<MODE> {
             sum += player.score();
         }
         if sum != 0.0 {
-            eprintln!("Inconsistent points sum : {}", sum);
+            eprintln!("Inconsistent points sum : {sum}");
             return Err(TarotErrorKind::InvalidScores(sum.to_string()));
         }
         Ok(())
     }
-    pub fn mode(&self) -> &Mode {
+    #[must_use]
+    pub const fn mode(&self) -> &Mode {
         &self.mode
     }
-    pub fn player(&self, index: usize) -> &Player {
+    #[must_use]
+    pub const fn player(&self, index: usize) -> &Player {
         &self.players[index]
     }
     pub fn player_mut(&mut self, index: usize) -> &mut Player {
         &mut self.players[index]
     }
-    pub fn players(&self) -> &[Player; MODE] {
+    #[must_use]
+    pub const fn players(&self) -> &[Player; MODE] {
         &self.players
     }
     pub fn start(mut self, mut deals: u16) -> Result<(), TarotErrorKind> {
@@ -101,7 +104,7 @@ impl<const MODE: usize> Game<MODE> {
         }
         if !self.options.quiet {
             println!("GAME ENDED");
-            println!("{}", self);
+            println!("{self}");
         }
         Ok(())
     }
@@ -114,7 +117,7 @@ impl<const MODE: usize> Game<MODE> {
         dog.sort();
         for player in players_in_game.iter_mut() {
             let buffer = new_deck.give(self.mode.cards_per_player());
-            player.extend_hand(&buffer)
+            player.extend_hand(&buffer);
         }
 
         for player in players_in_game.iter() {

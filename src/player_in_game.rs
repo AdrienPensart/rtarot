@@ -11,7 +11,7 @@ use crate::contract::Contract;
 use crate::deck::Deck;
 use crate::errors::TarotErrorKind;
 use crate::handle::Handle;
-use crate::helpers::*;
+use crate::helpers::read_index;
 use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
@@ -71,27 +71,31 @@ impl HasPoints for PlayerInGame {
 }
 
 impl PlayerInGame {
+    #[must_use]
     pub fn petit_sec(&self) -> bool {
         self.hand.petit_sec()
     }
     pub fn set_callee(&mut self, callee: Option<Card>) {
-        self.callee = callee
+        self.callee = callee;
     }
     pub fn set_team(&mut self, team: Team) {
-        self.team = Some(team)
+        self.team = Some(team);
     }
     pub fn set_role(&mut self, role: Role) {
-        self.role = Some(role)
+        self.role = Some(role);
     }
-    pub fn callee(&self) -> Option<Card> {
+    #[must_use]
+    pub const fn callee(&self) -> Option<Card> {
         self.callee
     }
+    #[must_use]
     pub fn has(&self, card: &Card) -> bool {
         self.hand.has(card)
     }
     pub fn set_discard(&mut self, discard: &Deck) {
-        self.discard = discard.clone()
+        self.discard = discard.clone();
     }
+    #[must_use]
     pub fn all_cards(&self) -> Deck {
         let mut all_cards = self.owned.clone();
         all_cards.extend(&self.discard);
@@ -107,19 +111,24 @@ impl PlayerInGame {
     pub fn extend_owned(&mut self, deck: &Deck) {
         self.owned.extend(deck);
     }
+    #[must_use]
     pub fn is_taker(&self) -> bool {
         self.role == Some(Role::Taker)
     }
-    pub fn role(&self) -> &Option<Role> {
+    #[must_use]
+    pub const fn role(&self) -> &Option<Role> {
         &self.role
     }
+    #[must_use]
     pub fn is_attack(&self) -> bool {
         self.team == Some(Team::Attack)
     }
-    pub fn team(&self) -> &Option<Team> {
+    #[must_use]
+    pub const fn team(&self) -> &Option<Team> {
         &self.team
     }
-    pub fn handle(&self) -> &Option<Handle> {
+    #[must_use]
+    pub const fn handle(&self) -> &Option<Handle> {
         &self.handle
     }
     pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
@@ -166,9 +175,9 @@ impl PlayerInGame {
                     "{} must play color {}",
                     player.name(),
                     called.colored_symbol()
-                )
+                );
             } else {
-                println!("{} is first to play:", player.name())
+                println!("{} is first to play:", player.name());
             }
         }
 
@@ -182,7 +191,7 @@ impl PlayerInGame {
                 if possible_choices.contains(&choice_index) {
                     break choice_index;
                 } else if !self.options.quiet {
-                    println!("Error, please retry")
+                    println!("Error, please retry");
                 }
             }
         };
@@ -200,7 +209,7 @@ impl PlayerInGame {
             if self.options.attack {
                 return None;
             }
-            let random_choice_index = rand::thread_rng().gen_range(0..contracts.len() + 1);
+            let random_choice_index = rand::thread_rng().gen_range(0..=contracts.len());
             if random_choice_index == 0 {
                 return None;
             }
@@ -235,11 +244,12 @@ impl PlayerInGame {
         }
         Some(contract)
     }
+    #[must_use]
     pub fn slam_bonus(&self) -> f64 {
         if self.slam {
             if self.owned.is_chelem() {
                 if !self.options.quiet {
-                    println!("{} : chelem announced and realized !", self);
+                    println!("{self} : chelem announced and realized !");
                 }
                 400.0
             } else {
@@ -247,7 +257,7 @@ impl PlayerInGame {
             }
         } else if self.owned.is_chelem() {
             if !self.options.quiet {
-                println!("{} : chelem not announced but realized !", self);
+                println!("{self} : chelem not announced but realized !");
             }
             200.0
         } else if self.owned.is_empty() || self.owned.only_fool() {
@@ -272,14 +282,14 @@ impl PlayerInGame {
                     println!("Hand of {} : {}", &self, &self.hand);
                     println!("Slam ? : ");
                     for (i, s) in slams.iter().enumerate() {
-                        println!("{} : press {}", s, i);
+                        println!("{s} : press {i}");
                     }
                 }
                 let slam_index = read_index();
                 if slam_index < slams.len() {
                     break slams[slam_index];
                 } else if !self.options.quiet {
-                    println!("Error, please retry")
+                    println!("Error, please retry");
                 }
             }
         };
@@ -309,8 +319,8 @@ impl PlayerInGame {
                 } else {
                     loop {
                         if !self.options.quiet {
-                            for &a in trumps.iter() {
-                                println!("\t{}", &a);
+                            for a in &trumps {
+                                println!("\t{a}");
                             }
                             println!(
                                 "You have {} trumps, you can declare a handle : ",
@@ -328,7 +338,7 @@ impl PlayerInGame {
                         if handle_index < handles.len() {
                             break handles[handle_index];
                         } else if !self.options.quiet {
-                            println!("Error, please retry")
+                            println!("Error, please retry");
                         }
                     }
                 };
@@ -360,13 +370,12 @@ impl PlayerInGame {
                                         rand::thread_rng().gen_range(0..trumps.len());
                                     trumps.remove(index_to_remove);
                                     break;
-                                } else {
-                                    let trump_index = read_index();
-                                    if trump_index < trumps.len() {
-                                        trumps.remove(trump_index);
-                                    } else if !self.options.quiet {
-                                        println!("Error, please retry")
-                                    }
+                                }
+                                let trump_index = read_index();
+                                if trump_index < trumps.len() {
+                                    trumps.remove(trump_index);
+                                } else if !self.options.quiet {
+                                    println!("Error, please retry");
                                 }
                             }
                             to_discard -= 1;
@@ -376,7 +385,7 @@ impl PlayerInGame {
                     }
                     if !self.options.quiet {
                         println!("Final handle : ");
-                        for a in trumps.iter() {
+                        for a in &trumps {
                             println!("\t{}", &a);
                         }
                     }
@@ -385,11 +394,13 @@ impl PlayerInGame {
             }
         };
     }
+    #[must_use]
     pub fn owe_card(&self) -> bool {
         self.owned.has_fool()
             && self.owned.len() > 1
             && (self.owned.len() % self.mode.players()) == 1
     }
+    #[must_use]
     pub fn missing_card(&self) -> bool {
         !self.owned.has_fool()
             && self.owned.len() > 1
@@ -398,18 +409,23 @@ impl PlayerInGame {
     pub fn give_low(&mut self) -> Option<Card> {
         self.owned.give_low()
     }
+    #[must_use]
     pub fn count_oudlers(&self) -> usize {
         self.owned.count_oudlers()
     }
+    #[must_use]
     pub fn is_first_turn(&self) -> bool {
         self.mode.cards_per_player() == self.hand.len()
     }
+    #[must_use]
     pub fn last_turn(&self) -> bool {
         self.hand.is_empty()
     }
+    #[must_use]
     pub fn before_last_turn(&self) -> bool {
         self.hand.len() == 1
     }
+    #[must_use]
     pub fn call(&self) -> Option<Card> {
         if self.mode != Mode::Five {
             return None;
@@ -445,25 +461,25 @@ impl PlayerInGame {
                     println!("Taker must choose a card to call his partner :");
                     println!("Possibilities:");
                     for (i, c) in choices.iter().enumerate() {
-                        println!("\t{0: <3} : press {1}", c, i);
+                        println!("\t{c: <3} : press {i}");
                     }
                 }
                 let choice_index = read_index();
                 if choice_index < choices.len() {
                     break choices[choice_index];
                 } else if !self.options.quiet {
-                    println!("Error, please retry")
+                    println!("Error, please retry");
                 }
             }
         };
         if !self.options.quiet {
-            println!("Called card for ally is {}", callee);
+            println!("Called card for ally is {callee}");
         }
         Some(callee)
     }
     pub fn discard(&mut self) {
         if !self.options.quiet {
-            println!("{}", self);
+            println!("{self}");
         }
         let dog_size = self.mode.dog_size();
         for current in 0..dog_size {
@@ -487,7 +503,7 @@ impl PlayerInGame {
                     if discardables_indexes.contains(&discard_index) {
                         break discard_index;
                     } else if !self.options.quiet {
-                        println!("Error, please retry")
+                        println!("Error, please retry");
                     }
                 }
             };
@@ -586,7 +602,7 @@ impl PlayerInGame {
                             }
                         }
                     } else {
-                        other_colors.push(i)
+                        other_colors.push(i);
                     }
                 }
                 if !trumps_more.is_empty() {

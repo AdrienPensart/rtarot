@@ -1,6 +1,7 @@
 use std::io;
 
 #[allow(clippy::redundant_closure)]
+#[must_use]
 pub fn read_index() -> usize {
     let mut input = String::new();
     loop {
@@ -18,6 +19,7 @@ pub fn wait_input() {
     let _ = stdin.read(&mut [0u8]).unwrap();
 }
 
+#[must_use]
 pub fn binomial(mut n: usize, mut k: usize) -> usize {
     if k > n {
         return 0;

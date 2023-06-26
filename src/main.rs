@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let mode = Mode::from_str(&opt.players)?;
         let result = launch_game(mode, options, opt.deals);
         if let Err(e) = result {
-            eprintln!("{}", e);
+            eprintln!("{e}");
         };
     }
     Ok(())

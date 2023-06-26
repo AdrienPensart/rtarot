@@ -17,8 +17,8 @@ pub enum Card {
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Trump(t) => write!(f, "{}", t),
-            Self::Normal(n) => write!(f, "{}", n),
+            Self::Trump(t) => write!(f, "{t}"),
+            Self::Normal(n) => write!(f, "{n}"),
         }
     }
 }
@@ -57,21 +57,26 @@ impl Discardable for Card {
 }
 
 impl Card {
+    #[must_use]
     pub fn normal(suit: Suit, value: SuitValue) -> Self {
         Self::Normal(Normal::new(suit, value))
     }
+    #[must_use]
     pub const fn is_fool(self) -> bool {
         matches!(self, Self::Trump(Trump::Fool))
     }
+    #[must_use]
     pub const fn is_trump(self) -> bool {
         matches!(self, Self::Trump(_))
     }
+    #[must_use]
     pub const fn is_oudler(self) -> bool {
         match self {
             Self::Trump(c) => c.is_oudler(),
-            _ => false,
+            Self::Normal(_) => false,
         }
     }
+    #[must_use]
     pub fn master(self, arg: Self) -> bool {
         match (&self, &arg) {
             (Self::Trump(c), Self::Normal(_)) => c != &Trump::Fool,

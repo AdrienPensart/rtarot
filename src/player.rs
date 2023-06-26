@@ -22,14 +22,17 @@ impl fmt::Display for Player {
 
 impl Player {
     pub fn add_score(&mut self, points: OrderedFloat<f64>) {
-        self.score += points
+        self.score += points;
     }
+    #[must_use]
     pub const fn score(&self) -> OrderedFloat<f64> {
         self.score
     }
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
+    #[must_use]
     pub const fn options(&self) -> &Options {
         &self.options
     }

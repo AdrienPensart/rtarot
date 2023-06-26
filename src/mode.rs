@@ -48,6 +48,7 @@ impl FromStr for Mode {
 }
 
 impl Mode {
+    #[must_use]
     pub const fn players(self) -> usize {
         match self {
             Self::Three => 3,
@@ -55,11 +56,12 @@ impl Mode {
             Self::Five => 5,
         }
     }
+    #[must_use]
     pub const fn ratio(&self, with_ally: bool) -> OrderedFloat<f64> {
         let ratio = match self {
-            Mode::Three => 2.0,
-            Mode::Four => 3.0,
-            Mode::Five => {
+            Self::Three => 2.0,
+            Self::Four => 3.0,
+            Self::Five => {
                 if with_ally {
                     2.0
                 } else {
@@ -69,12 +71,14 @@ impl Mode {
         };
         OrderedFloat(ratio)
     }
+    #[must_use]
     pub const fn dog_size(&self) -> usize {
         match self {
             Self::Five => 3,
             _ => 6,
         }
     }
+    #[must_use]
     pub const fn cards_per_turn(&self) -> usize {
         match self {
             Self::Three => 4,
@@ -88,9 +92,11 @@ impl Mode {
             Self::Five => 15,
         }
     }
+    #[must_use]
     pub const fn max_cards_for_taker(&self) -> usize {
         self.dog_size() + self.cards_per_player()
     }
+    #[must_use]
     pub const fn player_name(&self, index: usize) -> &'static str {
         match self {
             Self::Three => match index {
@@ -116,6 +122,7 @@ impl Mode {
             },
         }
     }
+    #[must_use]
     pub const fn handle(&self, count: usize) -> Option<Handle> {
         match self {
             Self::Three => match count {
@@ -138,6 +145,7 @@ impl Mode {
             },
         }
     }
+    #[must_use]
     pub const fn handle_limit(&self, handle: &Handle) -> usize {
         match handle {
             Handle::Refused => 0,

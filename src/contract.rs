@@ -11,6 +11,7 @@ pub enum Contract {
 }
 
 impl Contract {
+    #[must_use]
     pub const fn multiplier(self) -> f64 {
         match self {
             Self::Petite => 1.0,

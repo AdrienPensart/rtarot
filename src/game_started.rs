@@ -34,14 +34,14 @@ impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Contract : {}", self.contract)?;
         if let Some(team) = &self.petit_au_bout_for_team {
-            writeln!(f, "Petit au bout? : {}", team)?;
+            writeln!(f, "Petit au bout? : {team}")?;
         }
         writeln!(f, "Defense cards : {}", self.defense_cards)?;
         writeln!(f, "Attack cards : {}", self.attack_cards)?;
         writeln!(f, "Players : ")?;
         for index in 0..MODE {
             let (player, player_in_game) = self.player_and_his_game(index);
-            writeln!(f, "\t{} {}", player, player_in_game)?;
+            writeln!(f, "\t{player} {player_in_game}")?;
         }
         Ok(())
     }
@@ -57,9 +57,11 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
     pub fn mode(&mut self) -> &Mode {
         self.game_distributed.game().mode()
     }
+    #[must_use]
     pub fn player(&self, index: usize) -> &Player {
         self.game_distributed.player(index)
     }
+    #[must_use]
     pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         self.game_distributed.player_and_his_game(index)
     }
@@ -87,11 +89,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
 
             let card = current_player_in_game.play_card(current_player, &mut turn)?;
             if card.is_fool() {
-                if !current_player_in_game.last_turn() {
-                    // RULE: the fool is always preserved to his owner
-                    current_player_in_game.push_owned(card);
-                    turn.put(card);
-                } else {
+                if current_player_in_game.last_turn() {
                     // RULE: exception in the last turn, the fool is in game and can be lost
                     turn.put(card);
                     match team {
@@ -108,6 +106,10 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                             }
                         }
                     }
+                } else {
+                    // RULE: the fool is always preserved to his owner
+                    current_player_in_game.push_owned(card);
+                    turn.put(card);
                 }
             } else {
                 turn.put(card);
@@ -245,13 +247,21 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             }
         }
         match self.game_distributed.game().mode() {
-            Mode::Three => assert_eq!(defense.len(), 2),
-            Mode::Four => assert_eq!(defense.len(), 3),
+            Mode::Three => {
+                assert_eq!(defense.len(), 2);
+                assert_eq!(attack.len(), 1);
+            },
+            Mode::Four => {
+                assert_eq!(defense.len(), 3);
+                assert_eq!(attack.len(), 1);
+            },
             Mode::Five => {
                 if ally_index.is_some() {
-                    assert_eq!(defense.len(), 3)
+                    assert_eq!(defense.len(), 3);
+                    assert_eq!(attack.len(), 2);
                 } else {
-                    assert_eq!(defense.len(), 4)
+                    assert_eq!(defense.len(), 4);
+                    assert_eq!(attack.len(), 1);
                 }
             }
         };
@@ -284,9 +294,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             let taker_name = &players[taker_index].name();
             let taker_in_game = &mut players_in_game[taker_index];
             if !quiet {
-                println!("{ally_name} gives his card to {taker_name}")
+                println!("{ally_name} gives his card to {taker_name}");
             }
-            taker_in_game.extend_owned(&ally_cards)
+            taker_in_game.extend_owned(&ally_cards);
         }
 
         let (taker, taker_in_game) = self.player_and_his_game_mut(self.taker_index);
@@ -365,7 +375,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
 
         if !self.options.quiet {
             println!("Attack handle bonus: {}", handle_bonus.abs());
-            println!("Taker points: {}", points);
+            println!("Taker points: {points}");
             println!(
                 "Taker total points: {}",
                 self.game_distributed
@@ -409,7 +419,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
             }
             if !self.options.quiet {
                 let defenser = self.game_distributed.game().player(defenser_index);
-                println!("Defenser : {}", defenser);
+                println!("Defenser : {defenser}");
             }
         }
         //if handle_bonus != 0.0  && petit_au_bout_bonus != 0.0 && slam_bonus != 0.0 && ratio == 4.0 {

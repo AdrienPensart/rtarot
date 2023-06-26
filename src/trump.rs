@@ -39,6 +39,7 @@ impl fmt::Display for Trump {
 }
 
 impl Trump {
+    #[must_use]
     pub const fn is_oudler(&self) -> bool {
         matches!(self, Self::Fool | Self::Petit | Self::_21)
     }

@@ -10,6 +10,7 @@ pub struct Turn {
 }
 
 impl Turn {
+    #[must_use]
     pub fn take_cards_except_fool(self) -> Deck {
         Deck::new(
             self.cards
@@ -21,22 +22,25 @@ impl Turn {
     pub fn put(&mut self, card: Card) {
         self.cards.push(card);
     }
+    #[must_use]
     pub fn len(&self) -> usize {
         self.cards.len()
     }
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.cards.is_empty()
     }
+    #[must_use]
     pub fn called(&self) -> Option<&Card> {
         for c in self.cards.iter() {
             if c.is_fool() {
                 continue;
-            } else {
-                return Some(c);
             }
+            return Some(c);
         }
         None
     }
+    #[must_use]
     pub fn master_card(&self) -> Option<&Card> {
         self.master_index.map(|index| &self.cards[index])
     }
@@ -49,7 +53,7 @@ impl fmt::Display for Turn {
             write!(f, "\nCalled color: {}", called.colored_symbol())?;
         }
         if let Some(master) = self.master_card() {
-            write!(f, "\nMaster card: {}", master)?;
+            write!(f, "\nMaster card: {master}")?;
         }
         Ok(())
     }
