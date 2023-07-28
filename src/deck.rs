@@ -104,7 +104,6 @@ impl Deck {
         // RULE: deck is a chelem if all cards are there or fool is missing
         self.points() == MAX_POINTS || self.points() == MAX_POINTS_WITHOUT_FOOL
     }
-    #[must_use]
     pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
         match self.count_oudlers() {
             0 => Ok(OrderedFloat(56.0)),
