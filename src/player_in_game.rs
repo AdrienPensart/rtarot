@@ -270,7 +270,7 @@ impl PlayerInGame {
         if self.options.no_slam {
             return Ok(false);
         }
-        let slams = vec![false, true];
+        let slams = [false, true];
         self.slam = if self.options.random {
             let weights = vec![99, 1];
             let dist = WeightedAliasIndex::new(weights)?;

@@ -84,7 +84,7 @@ impl Representation for SuitValue {
     }
     fn full_repr(&self) -> ColoredString {
         let base = match self {
-            Self::_1 => indoc! {r#"
+            Self::_1 => indoc! {r"
             ****************
             *     __       *
             *    /  |      *
@@ -93,8 +93,8 @@ impl Representation for SuitValue {
             *    _| |_     *
             *   |_____|    *
             *              *
-            ****************"#},
-            Self::_2 => indoc! {r#"
+            ****************"},
+            Self::_2 => indoc! {r"
             ****************
             *    _____     *
             *   / ___ `.   *
@@ -103,8 +103,8 @@ impl Representation for SuitValue {
             *  / /____     *
             *  |_______|   *
             *              *
-            ****************"#},
-            Self::_3 => indoc! {r#"
+            ****************"},
+            Self::_3 => indoc! {r"
             ****************
             *    ______    *
             *   / ____ `.  *
@@ -113,8 +113,8 @@ impl Representation for SuitValue {
             *  | \____) |  *
             *   \______.'  *
             *              *
-            ****************"#},
-            Self::_4 => indoc! {r#"
+            ****************"},
+            Self::_4 => indoc! {r"
             ****************
             *   _    _     *
             *  | |  | |    *
@@ -123,8 +123,8 @@ impl Representation for SuitValue {
             *      _| |_   *
             *     |_____|  *
             *              *
-            ****************"#},
-            Self::_5 => indoc! {r#"
+            ****************"},
+            Self::_5 => indoc! {r"
             ****************
             *   _______    *
             *  |  _____|   *
@@ -133,8 +133,8 @@ impl Representation for SuitValue {
             *  | \____) |  *
             *   \______.'  *
             *              *
-            ****************"#},
-            Self::_6 => indoc! {r#"
+            ****************"},
+            Self::_6 => indoc! {r"
             ****************
             *    ______    *
             *  .' ____ \   *
@@ -143,8 +143,8 @@ impl Representation for SuitValue {
             *  | (____) |  *
             *  '.______.'  *
             *              *
-            ****************"#},
-            Self::_7 => indoc! {r#"
+            ****************"},
+            Self::_7 => indoc! {r"
             ****************
             *    _______   *
             *   |  ___  |  *
@@ -153,8 +153,8 @@ impl Representation for SuitValue {
             *      / /     *
             *     /_/      *
             *              *
-            ****************"#},
-            Self::_8 => indoc! {r#"
+            ****************"},
+            Self::_8 => indoc! {r"
             ****************
             *     ____     *
             *   .' __ '.   *
@@ -163,8 +163,8 @@ impl Representation for SuitValue {
             *  | (____) |  *
             *  `.______.'  *
             *              *
-            ****************"#},
-            Self::_9 => indoc! {r#"
+            ****************"},
+            Self::_9 => indoc! {r"
             ****************
             *    ______    *
             *  .' ____ '.  *
@@ -173,8 +173,8 @@ impl Representation for SuitValue {
             *  | \____| |  *
             *   \______,'  *
             *              *
-            ****************"#},
-            Self::_10 => indoc! {r#"
+            ****************"},
+            Self::_10 => indoc! {r"
             ****************
             * __      __   *
             */  |   .'  '. *
@@ -183,8 +183,8 @@ impl Representation for SuitValue {
             *_| |_ |  `'  |*
             *_____| '.__.' *
             *              *
-            ****************"#},
-            Self::Jack => indoc! {r#"
+            ****************"},
+            Self::Jack => indoc! {r"
             ****************
             *     _____    *
             *    |_   _|   *
@@ -193,8 +193,8 @@ impl Representation for SuitValue {
             *  | |_' |     *
             *  `.___.'     *
             *              *
-            ****************"#},
-            Self::Knight => indoc! {r#"
+            ****************"},
+            Self::Knight => indoc! {r"
             ****************
             *     ______   *
             *   .' ___  |  *
@@ -203,8 +203,8 @@ impl Representation for SuitValue {
             *  \ `.___.'\  *
             *   `._____.'  *
             *              *
-            ****************"#},
-            Self::Queen => indoc! {r#"
+            ****************"},
+            Self::Queen => indoc! {r"
             ****************
             *    ___       *
             *  .'   '.     *
@@ -213,8 +213,8 @@ impl Representation for SuitValue {
             * \  `-'  \_   *
             *  `.___.\__|  *
             *              *
-            ****************"#},
-            Self::King => indoc! {r#"
+            ****************"},
+            Self::King => indoc! {r"
             ****************
             *  ___  ____   *
             * |_  ||_  _|  *
@@ -223,7 +223,7 @@ impl Representation for SuitValue {
             *  _| |  \ \_  *
             * |____||____| *
             *              *
-            ****************"#},
+            ****************"},
         };
         base.normal()
     }
