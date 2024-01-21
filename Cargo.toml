@@ -13,11 +13,23 @@ thiserror = "1.0"
 rand = "0.8"
 rand_distr = "0.4.3"
 derive_more = "0.99.17"
-derive-new = "0.5.9"
-itertools = "0.11"
+derive-new = "0.6.0"
+itertools = "0.12"
 strum = { version = "0.25", features = ["derive"] }
 indoc = "2.0"
 regex = "1"
 colored = "2.0.0"
 array-init = "2.0.1"
-ordered-float = "3.2.0"
+ordered-float = "4.2.0"
+lazy-regex = "3.1.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+enum_glob_use = "deny"
+pedantic = "deny"
+nursery = "deny"
+unwrap_used = "deny"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"

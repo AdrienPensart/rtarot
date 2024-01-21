@@ -1,4 +1,4 @@
-use crate::points::HasPoints;
+use crate::points::Points;
 use ordered_float::OrderedFloat;
 use strum::{Display, EnumIter};
 
@@ -12,7 +12,7 @@ pub enum Handle {
     Triple,
 }
 
-impl HasPoints for Handle {
+impl Points for Handle {
     fn points(&self) -> OrderedFloat<f64> {
         OrderedFloat(match self {
             Self::Refused => 0.0,

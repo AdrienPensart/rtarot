@@ -1,4 +1,4 @@
-use crate::points::HasPoints;
+use crate::points::Points;
 use crate::traits::{Discardable, Representation};
 use colored::{ColoredString, Colorize};
 use indoc::indoc;
@@ -56,7 +56,7 @@ impl Discardable for Trump {
     }
 }
 
-impl HasPoints for Trump {
+impl Points for Trump {
     fn points(&self) -> OrderedFloat<f64> {
         let points = if self.is_oudler() { 4.5 } else { 0.5 };
         OrderedFloat(points)

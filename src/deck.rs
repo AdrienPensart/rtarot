@@ -9,8 +9,9 @@ use std::fmt;
 use strum::IntoEnumIterator;
 
 use crate::card::Card;
+use crate::constants::{MAX_CARDS, MAX_POINTS, MAX_POINTS_WITHOUT_FOOL};
 use crate::errors::TarotErrorKind;
-use crate::points::{HasPoints, MAX_CARDS, MAX_POINTS, MAX_POINTS_WITHOUT_FOOL};
+use crate::points::Points;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
 use crate::traits::{Discardable, Representation};
@@ -44,7 +45,7 @@ impl fmt::Display for Deck {
     }
 }
 
-impl HasPoints for Deck {
+impl Points for Deck {
     fn points(&self) -> OrderedFloat<f64> {
         // RULE: if a slam is occuring and player has only fool or everyting except fool, fool = 4 points
         if self.len() == MAX_CARDS - 1 && !self.has_fool() {
@@ -180,6 +181,7 @@ impl Deck {
             Card::Trump(_) => false,
         })
     }
+    #[must_use]
     pub fn give(&mut self, size: usize) -> Self {
         Self(self.0.drain(0..size).collect())
     }

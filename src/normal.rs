@@ -1,11 +1,11 @@
-use crate::points::HasPoints;
+use crate::points::Points;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
 use crate::traits::{Discardable, Power, Representation};
 use colored::{ColoredString, Colorize};
 use derive_new::new;
+use lazy_regex::regex;
 use ordered_float::OrderedFloat;
-use regex::Regex;
 use std::fmt;
 
 #[derive(new, Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -31,7 +31,7 @@ impl Normal {
     }
 }
 
-impl HasPoints for Normal {
+impl Points for Normal {
     fn points(&self) -> OrderedFloat<f64> {
         self.value.points()
     }
@@ -65,9 +65,11 @@ impl Representation for Normal {
     fn repr(&self) -> ColoredString {
         self.colored_symbol()
     }
+    #[allow(clippy::trivial_regex)]
     fn full_repr(&self) -> ColoredString {
-        let re = Regex::new(r"[\*]").unwrap();
-        re.replace_all(&self.value.full_repr(), format!("{}", self.suit))
+        let repr_regex = regex!(r"[\*]");
+        repr_regex
+            .replace_all(&self.value.full_repr(), format!("{}", self.suit))
             .color(self.color())
     }
 }

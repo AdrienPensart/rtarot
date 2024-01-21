@@ -1,4 +1,4 @@
-use crate::points::HasPoints;
+use crate::points::Points;
 use crate::traits::{Discardable, Representation};
 use colored::{ColoredString, Colorize};
 use indoc::indoc;
@@ -41,7 +41,7 @@ impl Discardable for SuitValue {
     }
 }
 
-impl HasPoints for SuitValue {
+impl Points for SuitValue {
     fn points(&self) -> OrderedFloat<f64> {
         let points = match self {
             Self::Jack => 1.5,

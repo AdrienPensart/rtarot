@@ -32,7 +32,12 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         players_in_game: [PlayerInGame; MODE],
         options: Options,
     ) -> Self {
-        Self { game, options, dog, players_in_game }
+        Self {
+            game,
+            options,
+            dog,
+            players_in_game,
+        }
     }
     pub fn game(&mut self) -> &mut Game<MODE> {
         self.game
@@ -110,7 +115,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             self.rotate_at(slammer);
         }
 
-        let callee = self.players_in_game[taker_index].call();
+        let callee = self.players_in_game[taker_index].call()?;
         for (current_player_index, current_player) in self.players_in_game.iter_mut().enumerate() {
             current_player.set_callee(callee);
             current_player.set_team(Team::Defense);

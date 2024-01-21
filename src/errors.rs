@@ -17,7 +17,9 @@ pub enum TarotErrorKind {
     #[error("Invalid deck : {0}")]
     InvalidDeck(Deck),
     #[error("Invalid case")]
-    InvalidCase,
+    InvalidCase(String),
+    // #[error("Impossible case, taker cannot have all kings, queens, knights, jacks")]
+    // AllSuitsError,
     #[error("Sum of score is not zero")]
     InvalidScores(String),
     #[error("Invalid number of oudlers : {0}")]

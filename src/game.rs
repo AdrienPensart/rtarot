@@ -1,4 +1,4 @@
-use array_init::array_init;
+use array_init::{array_init, try_array_init};
 use ordered_float::OrderedFloat;
 use std::fmt;
 
@@ -18,7 +18,7 @@ pub struct Game<const MODE: usize> {
     dealer: usize,
 }
 
-pub fn launch_game(mode: Mode, options: Options, deals: u16) -> Result<(), TarotErrorKind> {
+pub fn launch(mode: Mode, options: Options, deals: u16) -> Result<(), TarotErrorKind> {
     if mode == Mode::Three {
         Game::<{ Mode::Three.players() }>::new(options)?.start(deals)?;
         return Ok(());
@@ -35,7 +35,7 @@ pub fn launch_game(mode: Mode, options: Options, deals: u16) -> Result<(), Tarot
 impl<const MODE: usize> fmt::Display for Game<MODE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "Players : ")?;
-        for player in self.players.iter() {
+        for player in &self.players {
             writeln!(f, "\t{player}")?;
         }
         Ok(())
@@ -45,12 +45,12 @@ impl<const MODE: usize> fmt::Display for Game<MODE> {
 impl<const MODE: usize> Game<MODE> {
     pub fn new(options: Options) -> Result<Self, TarotErrorKind> {
         let mode: Mode = MODE.try_into()?;
-        let players: [Player; MODE] = array_init(|i| {
-            let name = mode.player_name(i);
+        let players: [Player; MODE] = try_array_init(|i| -> Result<Player, TarotErrorKind> {
+            let name = mode.player_name(i)?;
             let random = options.test || name != "South";
             let player_options = Options { random, ..options };
-            Player::new(name.to_string(), mode, player_options)
-        });
+            Ok(Player::new(name.to_string(), mode, player_options))
+        })?;
         Ok(Self {
             players,
             mode,
@@ -115,12 +115,12 @@ impl<const MODE: usize> Game<MODE> {
         let mut new_deck = Deck::random();
         let mut dog = new_deck.give(self.mode.dog_size());
         dog.sort();
-        for player in players_in_game.iter_mut() {
+        for player in &mut players_in_game {
             let buffer = new_deck.give(self.mode.cards_per_player());
             player.extend_hand(&buffer);
         }
 
-        for player in players_in_game.iter() {
+        for player in &players_in_game {
             if player.petit_sec() {
                 if !self.options.quiet {
                     dbg!("Petit sec, cancel the game");
@@ -161,6 +161,6 @@ fn game_tests() {
         attack: false,
     };
     for mode in Mode::iter() {
-        launch_game(mode, options, 1).unwrap();
+        assert_eq!(launch(mode, options, 1), Ok(()));
     }
 }

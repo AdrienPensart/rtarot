@@ -96,29 +96,34 @@ impl Mode {
     pub const fn max_cards_for_taker(&self) -> usize {
         self.dog_size() + self.cards_per_player()
     }
-    #[must_use]
-    pub const fn player_name(&self, index: usize) -> &'static str {
+    pub fn player_name(&self, index: usize) -> Result<&'static str, TarotErrorKind> {
         match self {
             Self::Three => match index {
-                0 => "East",
-                1 => "North",
-                2 => "South",
-                _ => panic!("Mode with 3 players does not support more than 3 default names"),
+                0 => Ok("East"),
+                1 => Ok("North"),
+                2 => Ok("South"),
+                _ => Err(TarotErrorKind::InvalidCase(
+                    "Mode with 3 players does not support more than 3 default names".to_string(),
+                )),
             },
             Self::Four => match index {
-                0 => "East",
-                1 => "North",
-                2 => "South",
-                3 => "West",
-                _ => panic!("Mode with 4 players does not support more than 4 default names"),
+                0 => Ok("East"),
+                1 => Ok("North"),
+                2 => Ok("South"),
+                3 => Ok("West"),
+                _ => Err(TarotErrorKind::InvalidCase(
+                    "Mode with 4 players does not support more than 4 default names".to_string(),
+                )),
             },
             Self::Five => match index {
-                0 => "East",
-                1 => "North",
-                2 => "South",
-                3 => "West",
-                4 => "Compass",
-                _ => panic!("Mode with 5 players does not support more than 5 default names"),
+                0 => Ok("East"),
+                1 => Ok("North"),
+                2 => Ok("South"),
+                3 => Ok("West"),
+                4 => Ok("Compass"),
+                _ => Err(TarotErrorKind::InvalidCase(
+                    "Mode with 5 players does not support more than 5 default names".to_string(),
+                )),
             },
         }
     }

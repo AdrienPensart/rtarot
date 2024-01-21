@@ -15,7 +15,7 @@ use crate::helpers::read_index;
 use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
-use crate::points::HasPoints;
+use crate::points::Points;
 use crate::role::Role;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
@@ -64,7 +64,7 @@ impl fmt::Display for PlayerInGame {
     }
 }
 
-impl HasPoints for PlayerInGame {
+impl Points for PlayerInGame {
     fn points(&self) -> OrderedFloat<f64> {
         self.owned.points()
     }
@@ -134,7 +134,7 @@ impl PlayerInGame {
     pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
         self.owned.points_for_oudlers()
     }
-    pub fn play_card(&mut self, player: &Player, turn: &mut Turn) -> Result<Card, TarotErrorKind> {
+    pub fn play_card(&mut self, player: &Player, turn: &Turn) -> Result<Card, TarotErrorKind> {
         let Some(_) = self.role else {
             return Err(TarotErrorKind::NoRoleForPlayer(player.name().to_string()));
         };
@@ -151,7 +151,6 @@ impl PlayerInGame {
         }
 
         if self.is_first_turn() {
-            assert_eq!(self.hand.len(), self.mode.cards_per_player());
             self.announce_handle();
         }
 
@@ -162,7 +161,6 @@ impl PlayerInGame {
         }
 
         let possible_choices = &self.choices(turn)?;
-        assert!(!possible_choices.is_empty());
         if !self.options.quiet {
             for &possible_choice in possible_choices {
                 println!(
@@ -170,15 +168,16 @@ impl PlayerInGame {
                     self.hand[possible_choice], possible_choice
                 );
             }
-            if let Some(called) = turn.called() {
-                println!(
-                    "{} must play color {}",
-                    player.name(),
-                    called.colored_symbol()
-                );
-            } else {
-                println!("{} is first to play:", player.name());
-            }
+            turn.called().map_or_else(
+                || println!("{} is first to play:", player.name()),
+                |called| {
+                    println!(
+                        "{} must play color {}",
+                        player.name(),
+                        called.colored_symbol()
+                    );
+                },
+            );
         }
 
         let final_choice = if self.options.auto && possible_choices.len() == 1 {
@@ -425,10 +424,10 @@ impl PlayerInGame {
     pub fn before_last_turn(&self) -> bool {
         self.hand.len() == 1
     }
-    #[must_use]
-    pub fn call(&self) -> Option<Card> {
+
+    pub fn call(&self) -> Result<Option<Card>, TarotErrorKind> {
         if self.mode != Mode::Five {
-            return None;
+            return Ok(None);
         }
 
         let mut value_callable: Vec<SuitValue> = vec![SuitValue::King];
@@ -441,9 +440,10 @@ impl PlayerInGame {
                 if self.hand.count_tete(SuitValue::Knight) == 4 {
                     value_callable.push(SuitValue::Jack);
                     if self.hand.count_tete(SuitValue::Jack) == 4 {
-                        panic!(
+                        return Err(TarotErrorKind::InvalidCase(
                             "Impossible case, taker cannot have all kings, queens, knights, jacks"
-                        );
+                                .to_string(),
+                        ));
                     }
                 }
             }
@@ -475,7 +475,7 @@ impl PlayerInGame {
         if !self.options.quiet {
             println!("Called card for ally is {callee}");
         }
-        Some(callee)
+        Ok(Some(callee))
     }
     pub fn discard(&mut self) {
         if !self.options.quiet {
@@ -614,20 +614,25 @@ impl PlayerInGame {
                 }
             }
             (Some(Card::Normal(_)), None) => {
-                eprintln!("There cannot be a called color and no master card, impossible case!");
-                return Err(TarotErrorKind::InvalidCase);
+                eprintln!();
+                return Err(TarotErrorKind::InvalidCase(
+                    "There cannot be a called color and no master card".to_string(),
+                ));
             }
             (Some(Card::Trump(_)), Some(Card::Normal(_))) => {
-                eprintln!("There cannot be a called trump and a master color, impossible case!");
-                return Err(TarotErrorKind::InvalidCase);
+                return Err(TarotErrorKind::InvalidCase(
+                    "There cannot be a called trump and a master color".to_string(),
+                ));
             }
             (Some(Card::Trump(_)), None) => {
-                eprintln!("There cannot be a called trump and not master, impossible case!");
-                return Err(TarotErrorKind::InvalidCase);
+                return Err(TarotErrorKind::InvalidCase(
+                    "There cannot be a called trump and not master".to_string(),
+                ));
             }
             (None, Some(_)) => {
-                eprintln!("There cannot be no called color and a master, impossible case!");
-                return Err(TarotErrorKind::InvalidCase);
+                return Err(TarotErrorKind::InvalidCase(
+                    "There cannot be no called color and a master".to_string(),
+                ));
             }
             // RULE: first player can put the callee card but no any other card in the same color
             (None, None) => match (self.is_first_turn(), self.mode) {

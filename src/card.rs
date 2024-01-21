@@ -1,5 +1,5 @@
 use crate::normal::Normal;
-use crate::points::HasPoints;
+use crate::points::Points;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
 use crate::traits::{Discardable, Power, Representation};
@@ -23,7 +23,7 @@ impl fmt::Display for Card {
     }
 }
 
-impl HasPoints for Card {
+impl Points for Card {
     fn points(&self) -> OrderedFloat<f64> {
         match self {
             Self::Trump(v) => v.points(),

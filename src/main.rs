@@ -6,6 +6,7 @@ use std::thread;
 use strum::IntoEnumIterator;
 
 pub mod card;
+pub mod constants;
 pub mod contract;
 pub mod deck;
 pub mod errors;
@@ -28,7 +29,7 @@ pub mod traits;
 pub mod trump;
 pub mod turn;
 
-use crate::game::launch_game;
+use crate::game::launch;
 use crate::mode::Mode;
 use crate::options::Options;
 
@@ -88,7 +89,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             children.push(thread::spawn(move || {
                 println!("Spawned thread {:?}", thread::current());
                 for mode in Mode::iter().cycle() {
-                    let result = launch_game(mode, options, opt.deals);
+                    let result = launch(mode, options, opt.deals);
                     if let Err(e) = result {
                         eprintln!("{:?} : {}", thread::current(), e);
                     }
@@ -100,7 +101,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         }
     } else {
         let mode = Mode::from_str(&opt.players)?;
-        let result = launch_game(mode, options, opt.deals);
+        let result = launch(mode, options, opt.deals);
         if let Err(e) = result {
             eprintln!("{e}");
         };

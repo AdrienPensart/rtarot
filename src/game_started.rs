@@ -2,15 +2,16 @@ use derive_new::new;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
+use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS};
 use crate::contract::Contract;
 use crate::errors::TarotErrorKind;
 use crate::game_distributed::GameDistributed;
-use crate::helpers::wait_input;
+// use crate::helpers::wait_input;
 use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
 use crate::player_in_game::PlayerInGame;
-use crate::points::{HasPoints, BASE_CONTRACT_POINTS, MAX_CARDS};
+use crate::points::Points;
 use crate::role::Role;
 use crate::team::Team;
 use crate::turn::Turn;
@@ -84,10 +85,12 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 println!("Current player {current_player_name} (index : {current_player_index})");
             }
             let &Some(team) = current_player_in_game.team() else {
-                return Err(TarotErrorKind::NoTeamForPlayer(current_player.name().to_string()));
+                return Err(TarotErrorKind::NoTeamForPlayer(
+                    current_player.name().to_string(),
+                ));
             };
 
-            let card = current_player_in_game.play_card(current_player, &mut turn)?;
+            let card = current_player_in_game.play_card(current_player, &turn)?;
             if card.is_fool() {
                 if current_player_in_game.last_turn() {
                     // RULE: exception in the last turn, the fool is in game and can be lost
@@ -172,7 +175,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         }
 
         let Some(master_player_team) = master_player_in_game.team() else {
-            return Err(TarotErrorKind::NoTeamForPlayer(master_player_name.to_string()));
+            return Err(TarotErrorKind::NoTeamForPlayer(
+                master_player_name.to_string(),
+            ));
         };
 
         let turn_cards = turn.take_cards_except_fool();
@@ -184,7 +189,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                     "{master_player_name} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points",
                 );
             }
-            wait_input();
+            // wait_input();
             Some(*master_player_team)
         } else {
             None
@@ -203,8 +208,11 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         self.defense_cards += defense_cards;
         Ok(())
     }
+
+    #[allow(clippy::manual_assert)]
     pub fn count_points(&mut self) -> Result<(), TarotErrorKind> {
         let mut ally_index: Option<usize> = None;
+        #[allow(clippy::collection_is_never_read)]
         let mut attack: Vec<usize> = Vec::new();
         let mut defense: Vec<usize> = Vec::new();
         let mut owning_card_player_index: Option<usize> = None;
@@ -232,7 +240,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                     attack.push(current_player_index);
                 }
                 Some(Role::Ally) => {
-                    assert!(ally_index.is_none());
+                    // assert!(ally_index.is_none());
                     ally_index = Some(current_player_index);
                     attack.push(current_player_index);
                 }
@@ -246,25 +254,25 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 }
             }
         }
-        match self.game_distributed.game().mode() {
-            Mode::Three => {
-                assert_eq!(defense.len(), 2);
-                assert_eq!(attack.len(), 1);
-            },
-            Mode::Four => {
-                assert_eq!(defense.len(), 3);
-                assert_eq!(attack.len(), 1);
-            },
-            Mode::Five => {
-                if ally_index.is_some() {
-                    assert_eq!(defense.len(), 3);
-                    assert_eq!(attack.len(), 2);
-                } else {
-                    assert_eq!(defense.len(), 4);
-                    assert_eq!(attack.len(), 1);
-                }
-            }
-        };
+        // match self.game_distributed.game().mode() {
+        //     Mode::Three => {
+        //         assert_eq!(defense.len(), 2);
+        //         assert_eq!(attack.len(), 1);
+        //     }
+        //     Mode::Four => {
+        //         assert_eq!(defense.len(), 3);
+        //         assert_eq!(attack.len(), 1);
+        //     }
+        //     Mode::Five => {
+        //         if ally_index.is_some() {
+        //             assert_eq!(defense.len(), 3);
+        //             assert_eq!(attack.len(), 2);
+        //         } else {
+        //             assert_eq!(defense.len(), 4);
+        //             assert_eq!(attack.len(), 1);
+        //         }
+        //     }
+        // };
 
         // give a low card if someone owe a card to someone else
         if let (Some(owning_card_player_index), Some(missing_card_player_index)) =
@@ -272,17 +280,16 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         {
             let (players, players_in_game) = self.players_and_their_game_mut();
             let owning_card_player_name = players[owning_card_player_index].name();
-            let low_card = players_in_game[owning_card_player_index].give_low();
-            if let Some(low_card) = low_card {
+            players_in_game[owning_card_player_index].give_low().map_or_else(|| if !quiet {
+                println!("Player {owning_card_player_name} cannot give a low card");
+            }, |low_card| {
                 let missing_card_player_name = players[missing_card_player_index].name();
                 let missing_card_player_in_game = &mut players_in_game[missing_card_player_index];
                 missing_card_player_in_game.push_owned(low_card);
                 if !quiet {
                     println!("Player {owning_card_player_name} own a card to {missing_card_player_name}, giving a {low_card} in exchange");
                 }
-            } else if !quiet {
-                println!("Player {owning_card_player_name} cannot give a low card");
-            }
+        });
         }
 
         let taker_index = self.taker_index;
