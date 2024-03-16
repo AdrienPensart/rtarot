@@ -15,7 +15,7 @@ rand_distr = "0.4.3"
 derive_more = "0.99.17"
 derive-new = "0.6.0"
 itertools = "0.12"
-strum = { version = "0.25", features = ["derive"] }
+strum = { version = "0.26", features = ["derive"] }
 indoc = "2.0"
 regex = "1"
 colored = "2.0.0"

@@ -199,7 +199,7 @@ impl PlayerInGame {
     pub fn choose_contract_among(
         &mut self,
         player: &Player,
-        contracts: &Vec<Contract>,
+        contracts: &[Contract],
     ) -> Option<Contract> {
         let player_name = player.name();
         let contract = if self.options.auto && contracts.len() == 1 {
