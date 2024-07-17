@@ -42,7 +42,7 @@ struct Opts {
 
     /// Number of deals per game
     #[arg(short = 'd', long = "deals", default_value_t = 10)]
-    deals: u16,
+    deals: u64,
 
     /// Attack mode
     #[arg(long = "attack")]

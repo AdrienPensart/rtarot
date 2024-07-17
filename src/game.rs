@@ -18,7 +18,7 @@ pub struct Game<const MODE: usize> {
     dealer: usize,
 }
 
-pub fn launch(mode: Mode, options: Options, deals: u16) -> Result<(), TarotErrorKind> {
+pub fn launch(mode: Mode, options: Options, deals: u64) -> Result<(), TarotErrorKind> {
     if mode == Mode::Three {
         Game::<{ Mode::Three.players() }>::new(options)?.start(deals)?;
         return Ok(());
@@ -84,7 +84,7 @@ impl<const MODE: usize> Game<MODE> {
     pub const fn players(&self) -> &[Player; MODE] {
         &self.players
     }
-    pub fn start(mut self, mut deals: u16) -> Result<(), TarotErrorKind> {
+    pub fn start(mut self, mut deals: u64) -> Result<(), TarotErrorKind> {
         while deals > 0 {
             if !self.options.quiet {
                 println!("Deals left : {deals}");
@@ -130,9 +130,9 @@ impl<const MODE: usize> Game<MODE> {
         }
         Some(GameDistributed::new(
             self,
+            self.options,
             dog,
             players_in_game,
-            self.options,
         ))
     }
     pub fn rotate_at(&mut self, index: usize) {

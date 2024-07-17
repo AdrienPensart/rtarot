@@ -21,47 +21,6 @@ use crate::trump::Trump;
 #[deref(forward)]
 pub struct Deck(Vec<Card>);
 
-impl fmt::Display for Deck {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut last_color: Option<&Suit> = None;
-        let (trumps, colors) = self.trumps_and_colors();
-        if !trumps.is_empty() {
-            write!(f, "\n\t{}", trumps.iter().join(" "))?;
-        }
-        for colored in &colors {
-            if let Card::Normal(n) = colored {
-                if last_color == Some(n.suit()) {
-                    write!(f, "{n} ")?;
-                } else {
-                    last_color = Some(n.suit());
-                    match last_color {
-                        None => write!(f, "\t{n}")?,
-                        _ => write!(f, "\n\t{n} ")?,
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Points for Deck {
-    fn points(&self) -> OrderedFloat<f64> {
-        // RULE: if a slam is occuring and player has only fool or everyting except fool, fool = 4 points
-        if self.len() == MAX_CARDS - 1 && !self.has_fool() {
-            MAX_POINTS_WITHOUT_FOOL
-        } else if self.only_fool() {
-            OrderedFloat(4.0)
-        } else {
-            let mut total = OrderedFloat(0.0);
-            for card in self.iter() {
-                total += card.points();
-            }
-            total
-        }
-    }
-}
-
 impl Deck {
     pub fn random() -> Self {
         let mut d: Vec<Card> = Trump::iter()
@@ -223,6 +182,47 @@ impl Deck {
             }
         }
         ColoredString::from(buffers.values().join("\n").as_str())
+    }
+}
+
+impl fmt::Display for Deck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut last_color: Option<&Suit> = None;
+        let (trumps, colors) = self.trumps_and_colors();
+        if !trumps.is_empty() {
+            write!(f, "\n\t{}", trumps.iter().join(" "))?;
+        }
+        for colored in &colors {
+            if let Card::Normal(n) = colored {
+                if last_color == Some(n.suit()) {
+                    write!(f, "{n} ")?;
+                } else {
+                    last_color = Some(n.suit());
+                    match last_color {
+                        None => write!(f, "\t{n}")?,
+                        _ => write!(f, "\n\t{n} ")?,
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Points for Deck {
+    fn points(&self) -> OrderedFloat<f64> {
+        // RULE: if a slam is occuring and player has only fool or everyting except fool, fool = 4 points
+        if self.len() == MAX_CARDS - 1 && !self.has_fool() {
+            MAX_POINTS_WITHOUT_FOOL
+        } else if self.only_fool() {
+            OrderedFloat(4.0)
+        } else {
+            let mut total = OrderedFloat(0.0);
+            for card in self.iter() {
+                total += card.points();
+            }
+            total
+        }
     }
 }
 

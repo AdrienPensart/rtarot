@@ -13,12 +13,6 @@ pub fn read_index() -> usize {
     }
 }
 
-// pub fn wait_input() {
-//     use std::io::prelude::*;
-//     let mut stdin = io::stdin();
-//     let _ = stdin.read(&mut [0u8]).unwrap();
-// }
-
 #[must_use]
 pub fn binomial(mut n: usize, mut k: usize) -> usize {
     if k > n {

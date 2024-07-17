@@ -8,10 +8,12 @@ use crate::player::Player;
 use crate::player_in_game::PlayerInGame;
 use crate::role::Role;
 use crate::team::Team;
+use derive_new::new;
 use itertools::{Either, Itertools};
 use std::fmt;
 use strum::IntoEnumIterator;
 
+#[derive(new)]
 pub struct GameDistributed<'a, const MODE: usize> {
     game: &'a mut Game<MODE>,
     options: Options,
@@ -26,19 +28,6 @@ impl<const MODE: usize> fmt::Display for GameDistributed<'_, MODE> {
 }
 
 impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
-    pub fn new(
-        game: &'a mut Game<MODE>,
-        dog: Deck,
-        players_in_game: [PlayerInGame; MODE],
-        options: Options,
-    ) -> Self {
-        Self {
-            game,
-            options,
-            dog,
-            players_in_game,
-        }
-    }
     pub fn game(&mut self) -> &mut Game<MODE> {
         self.game
     }

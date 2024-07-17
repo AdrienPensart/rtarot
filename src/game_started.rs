@@ -217,11 +217,17 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         let mut defense: Vec<usize> = Vec::new();
         let mut owning_card_player_index: Option<usize> = None;
         let mut missing_card_player_index: Option<usize> = None;
-        let mut handle_bonus = OrderedFloat(0.0);
+        let mut handle_bonuses = OrderedFloat(0.0);
         let quiet = self.options.quiet;
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
                 self.player_and_his_game_mut(current_player_index);
+
+            let Some(role) = current_player_in_game.role() else {
+                return Err(TarotErrorKind::NoRoleForPlayer(
+                    current_player.name().to_string(),
+                ));
+            };
 
             if current_player_in_game.owe_card() {
                 owning_card_player_index = Some(current_player_index);
@@ -230,49 +236,25 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 missing_card_player_index = Some(current_player_index);
             }
             if let Some(handle) = &current_player_in_game.handle() {
-                handle_bonus = handle.points();
+                let handle_bonus = handle.points();
+                handle_bonuses += handle_bonus;
                 if !quiet {
-                    println!("Handle bonus: {handle_bonus}");
+                    println!("Handle bonus for role {role} : {handle_bonus}");
                 }
             }
-            match current_player_in_game.role() {
-                Some(Role::Taker) => {
+            match role {
+                Role::Taker => {
                     attack.push(current_player_index);
                 }
-                Some(Role::Ally) => {
-                    // assert!(ally_index.is_none());
+                Role::Ally => {
                     ally_index = Some(current_player_index);
                     attack.push(current_player_index);
                 }
-                Some(Role::Defenser) => {
+                Role::Defenser => {
                     defense.push(current_player_index);
-                }
-                None => {
-                    return Err(TarotErrorKind::NoRoleForPlayer(
-                        current_player.name().to_string(),
-                    ));
                 }
             }
         }
-        // match self.game_distributed.game().mode() {
-        //     Mode::Three => {
-        //         assert_eq!(defense.len(), 2);
-        //         assert_eq!(attack.len(), 1);
-        //     }
-        //     Mode::Four => {
-        //         assert_eq!(defense.len(), 3);
-        //         assert_eq!(attack.len(), 1);
-        //     }
-        //     Mode::Five => {
-        //         if ally_index.is_some() {
-        //             assert_eq!(defense.len(), 3);
-        //             assert_eq!(attack.len(), 2);
-        //         } else {
-        //             assert_eq!(defense.len(), 4);
-        //             assert_eq!(attack.len(), 1);
-        //         }
-        //     }
-        // };
 
         // give a low card if someone owe a card to someone else
         if let (Some(owning_card_player_index), Some(missing_card_player_index)) =
@@ -280,16 +262,18 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         {
             let (players, players_in_game) = self.players_and_their_game_mut();
             let owning_card_player_name = players[owning_card_player_index].name();
-            players_in_game[owning_card_player_index].give_low().map_or_else(|| if !quiet {
-                println!("Player {owning_card_player_name} cannot give a low card");
-            }, |low_card| {
-                let missing_card_player_name = players[missing_card_player_index].name();
-                let missing_card_player_in_game = &mut players_in_game[missing_card_player_index];
-                missing_card_player_in_game.push_owned(low_card);
-                if !quiet {
-                    println!("Player {owning_card_player_name} own a card to {missing_card_player_name}, giving a {low_card} in exchange");
+            players_in_game[owning_card_player_index].give_low().map_or_else(
+                || if !quiet {
+                    println!("Player {owning_card_player_name} cannot give a low card");
+                }, |low_card| {
+                    let missing_card_player_name = players[missing_card_player_index].name();
+                    let missing_card_player_in_game = &mut players_in_game[missing_card_player_index];
+                    missing_card_player_in_game.push_owned(low_card);
+                    if !quiet {
+                        println!("Player {owning_card_player_name} own a card to {missing_card_player_name}, giving a {low_card} in exchange");
+                    }
                 }
-        });
+            );
         }
 
         let taker_index = self.taker_index;
@@ -365,7 +349,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         };
 
         let ratio = self.mode().ratio(ally_index.is_some());
-        let points = contract_points + petit_au_bout_bonus + handle_bonus + slam_bonus;
+        let points = contract_points + petit_au_bout_bonus + handle_bonuses + slam_bonus;
 
         if contract_points >= OrderedFloat(0.0) {
             self.game_distributed
@@ -373,7 +357,6 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 .player_mut(self.taker_index)
                 .add_score(ratio * points);
         } else {
-            handle_bonus *= -1.0;
             self.game_distributed
                 .game()
                 .player_mut(self.taker_index)
@@ -381,7 +364,7 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
         }
 
         if !self.options.quiet {
-            println!("Attack handle bonus: {}", handle_bonus.abs());
+            println!("Total handle bonuses: {handle_bonuses}");
             println!("Taker points: {points}");
             println!(
                 "Taker total points: {}",
@@ -429,9 +412,9 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
                 println!("Defenser : {defenser}");
             }
         }
-        //if handle_bonus != 0.0  && petit_au_bout_bonus != 0.0 && slam_bonus != 0.0 && ratio == 4.0 {
-        //    helpers::wait_input();
-        //}
         self.is_consistent()
     }
 }
+
+// #[test]
+// fn game_started_tests() {}
