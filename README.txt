@@ -13,12 +13,4 @@ Usage :
 - linting :
   - clippy : cargo clippy --all-targets --all-features -- -D warnings
 
-Todo :
-- type games : defense, attack, petit hunt, full assets
-- game managing
-    - flag on/off
-    - cut game
-    - random reunion
-- duplicate
-
 70.70% coverage, 772/1092 lines covered

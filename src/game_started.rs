@@ -6,7 +6,6 @@ use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS};
 use crate::contract::Contract;
 use crate::errors::TarotErrorKind;
 use crate::game_distributed::GameDistributed;
-// use crate::helpers::wait_input;
 use crate::mode::Mode;
 use crate::options::Options;
 use crate::player::Player;
@@ -48,11 +47,11 @@ impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
     }
 }
 
-impl<'a, const MODE: usize> GameStarted<'a, MODE> {
+impl<const MODE: usize> GameStarted<'_, MODE> {
     pub fn is_consistent(&mut self) -> Result<(), TarotErrorKind> {
         self.game_distributed.game().is_consistent()
     }
-    pub fn finished(&mut self) -> bool {
+    pub fn finished(&self) -> bool {
         self.game_distributed.finished()
     }
     pub fn mode(&mut self) -> &Mode {
@@ -416,5 +415,12 @@ impl<'a, const MODE: usize> GameStarted<'a, MODE> {
     }
 }
 
-// #[test]
-// fn game_started_tests() {}
+#[test]
+fn game_started_tests() {
+    use crate::game::Game;
+
+    let options = Options::default();
+    let _game = Game::<{ Mode::Four.players() }>::new(options);
+
+    // let game_distributed = GameDistributed::new(game, options, )
+}

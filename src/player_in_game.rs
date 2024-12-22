@@ -197,7 +197,7 @@ impl PlayerInGame {
         Ok(self.hand.remove(final_choice))
     }
     pub fn choose_contract_among(
-        &mut self,
+        &self,
         player: &Player,
         contracts: &[Contract],
     ) -> Option<Contract> {

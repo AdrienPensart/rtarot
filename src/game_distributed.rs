@@ -21,12 +21,6 @@ pub struct GameDistributed<'a, const MODE: usize> {
     players_in_game: [PlayerInGame; MODE],
 }
 
-impl<const MODE: usize> fmt::Display for GameDistributed<'_, MODE> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Game {} with dog {}", self.game.mode(), self.dog)
-    }
-}
-
 impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     pub fn game(&mut self) -> &mut Game<MODE> {
         self.game
@@ -165,5 +159,11 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         }
         let game_started = GameStarted::new(self, taker_index, contract, self.options);
         Ok(Some(game_started))
+    }
+}
+
+impl<const MODE: usize> fmt::Display for GameDistributed<'_, MODE> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Game {} with dog {}", self.game.mode(), self.dog)
     }
 }

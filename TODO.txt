@@ -1,0 +1,9 @@
+Todo :
+- type games : defense, attack, petit hunt, full assets
+- game managing
+    - flag on/off
+    - cut game
+    - dog one by one
+    - random reunion
+- test games : handles, chelem, etc
+- duplicate mode

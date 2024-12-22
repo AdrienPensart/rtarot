@@ -108,7 +108,7 @@ impl<const MODE: usize> Game<MODE> {
         }
         Ok(())
     }
-    pub fn distribute(&mut self) -> Option<GameDistributed<MODE>> {
+    fn distribute(&mut self) -> Option<GameDistributed<MODE>> {
         let mut players_in_game: [PlayerInGame; MODE] =
             array_init(|i| PlayerInGame::new(self.mode, *self.players[i].options()));
 
@@ -138,7 +138,7 @@ impl<const MODE: usize> Game<MODE> {
     pub fn rotate_at(&mut self, index: usize) {
         self.players.rotate_left(index);
     }
-    pub fn rotate_dealer(&mut self) {
+    fn rotate_dealer(&mut self) {
         if self.dealer == self.players.len() - 1 {
             self.dealer = 0;
         } else {
