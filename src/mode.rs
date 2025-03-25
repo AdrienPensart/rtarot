@@ -85,6 +85,7 @@ impl Mode {
             _ => 3,
         }
     }
+    #[must_use]
     pub const fn cards_per_player(&self) -> usize {
         match self {
             Self::Three => 24,

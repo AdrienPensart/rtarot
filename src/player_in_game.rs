@@ -1,8 +1,8 @@
 use derive_new::new;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use rand::{thread_rng, Rng};
-use rand_distr::{Distribution, WeightedAliasIndex, WeightedError};
+use rand::prelude::*;
+use rand_distr::Distribution;
 use std::fmt;
 use strum::IntoEnumIterator;
 
@@ -183,7 +183,7 @@ impl PlayerInGame {
         let final_choice = if self.options.auto && possible_choices.len() == 1 {
             possible_choices[0]
         } else if self.options.random {
-            possible_choices[rand::thread_rng().gen_range(0..possible_choices.len())]
+            possible_choices[rand::rng().random_range(0..possible_choices.len())]
         } else {
             loop {
                 let choice_index = read_index();
@@ -196,6 +196,7 @@ impl PlayerInGame {
         };
         Ok(self.hand.remove(final_choice))
     }
+    #[must_use]
     pub fn choose_contract_among(
         &self,
         player: &Player,
@@ -208,7 +209,7 @@ impl PlayerInGame {
             if self.options.attack {
                 return None;
             }
-            let random_choice_index = rand::thread_rng().gen_range(0..=contracts.len());
+            let random_choice_index = rand::rng().random_range(0..=contracts.len());
             if random_choice_index == 0 {
                 return None;
             }
@@ -265,15 +266,15 @@ impl PlayerInGame {
             0.0
         }
     }
-    pub fn announce_slam(&mut self) -> Result<bool, WeightedError> {
+    pub fn announce_slam(&mut self) -> Result<bool, rand_distr::weighted::Error> {
         if self.options.no_slam {
             return Ok(false);
         }
         let slams = [false, true];
         self.slam = if self.options.random {
             let weights = vec![99, 1];
-            let dist = WeightedAliasIndex::new(weights)?;
-            let mut rng = thread_rng();
+            let dist = rand_distr::weighted::WeightedAliasIndex::new(weights)?;
+            let mut rng = rand::rng();
             slams[dist.sample(&mut rng)]
         } else {
             loop {
@@ -314,7 +315,7 @@ impl PlayerInGame {
                     Handle::Refused => vec![],
                 };
                 handle = if self.options.random {
-                    handles[rand::thread_rng().gen_range(0..handles.len())]
+                    handles[rand::rng().random_range(0..handles.len())]
                 } else {
                     loop {
                         if !self.options.quiet {
@@ -365,8 +366,7 @@ impl PlayerInGame {
                                     );
                                 }
                                 if self.options.random {
-                                    let index_to_remove =
-                                        rand::thread_rng().gen_range(0..trumps.len());
+                                    let index_to_remove = rand::rng().random_range(0..trumps.len());
                                     trumps.remove(index_to_remove);
                                     break;
                                 }
@@ -453,7 +453,7 @@ impl PlayerInGame {
             .map(|(c, cv)| Card::normal(c, *cv))
             .collect();
         let callee = if self.options.random {
-            choices[rand::thread_rng().gen_range(0..choices.len())]
+            choices[rand::rng().random_range(0..choices.len())]
         } else {
             loop {
                 if !self.options.quiet {
@@ -488,7 +488,7 @@ impl PlayerInGame {
             }
             let discardables_indexes = self.hand.discardables(dog_size);
             let discard_index = if self.options.random {
-                discardables_indexes[rand::thread_rng().gen_range(0..discardables_indexes.len())]
+                discardables_indexes[rand::rng().random_range(0..discardables_indexes.len())]
             } else {
                 loop {
                     if !self.options.quiet {
@@ -640,7 +640,7 @@ impl PlayerInGame {
                     .hand
                     .iter()
                     .enumerate()
-                    .filter(|(_, &card)| match (card, self.callee) {
+                    .filter(|(_, card)| match (card, self.callee) {
                         (Card::Normal(normal), Some(Card::Normal(callee_normal))) => {
                             callee_normal.suit() != normal.suit()
                                 || normal.value() == callee_normal.value()

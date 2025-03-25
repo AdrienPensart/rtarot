@@ -3,7 +3,7 @@ use derive_more::{Deref, Index, IntoIterator};
 use derive_new::new;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use rand::{seq::SliceRandom, thread_rng};
+use rand::seq::SliceRandom;
 use std::collections::BTreeMap;
 use std::fmt;
 use strum::IntoEnumIterator;
@@ -31,7 +31,7 @@ impl Deck {
                     .map(|(c, cv)| Card::normal(c, cv)),
             )
             .collect();
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
         d.shuffle(&mut rng);
         Self(d)
     }

@@ -1,5 +1,4 @@
 use crate::deck::Deck;
-use rand_distr::WeightedError;
 use thiserror::Error;
 
 #[derive(Error, Debug, Eq, PartialEq)]
@@ -33,5 +32,5 @@ pub enum TarotErrorKind {
     #[error("A player shoud belongs to a team")]
     NoTeamForPlayer(String),
     #[error("Random number distribution error")]
-    WeightedError(#[from] WeightedError),
+    WeightedError(#[from] rand_distr::weighted::Error),
 }

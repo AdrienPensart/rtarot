@@ -51,6 +51,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
     pub fn is_consistent(&mut self) -> Result<(), TarotErrorKind> {
         self.game_distributed.game().is_consistent()
     }
+    #[must_use]
     pub fn finished(&self) -> bool {
         self.game_distributed.finished()
     }

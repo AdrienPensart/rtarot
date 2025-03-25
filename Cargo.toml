@@ -4,23 +4,23 @@ description = "Tarot simulation"
 default-run = "rtarot"
 version = "0.1.0"
 authors = ["Adrien Pensart <crunchengine@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 log = "0.4"
 clap = { version = "4.5.21", features = ["derive"] }
 thiserror = "2.0"
-rand = "0.8"
-rand_distr = "0.4.3"
-derive_more = { version = "1.0", features = ["full"] }
+rand = "0.9"
+rand_distr = "0.5.1"
+derive_more = { version = "2.0", features = ["full"] }
 derive-new = "0.7.0"
-itertools = "0.13"
-strum = { version = "0.26", features = ["derive"] }
+itertools = "0.14"
+strum = { version = "0.27", features = ["derive"] }
 indoc = "2.0"
 regex = "1.11.1"
-colored = "2.0.0"
+colored = "3.0.0"
 array-init = "2.0.1"
-ordered-float = "4.5.0"
+ordered-float = "5.0.0"
 lazy-regex = "3.1.0"
 
 [lints.rust]
