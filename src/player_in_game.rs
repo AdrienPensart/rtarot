@@ -75,13 +75,13 @@ impl PlayerInGame {
     pub fn petit_sec(&self) -> bool {
         self.hand.petit_sec()
     }
-    pub fn set_callee(&mut self, callee: Option<Card>) {
+    pub const fn set_callee(&mut self, callee: Option<Card>) {
         self.callee = callee;
     }
-    pub fn set_team(&mut self, team: Team) {
+    pub const fn set_team(&mut self, team: Team) {
         self.team = Some(team);
     }
-    pub fn set_role(&mut self, role: Role) {
+    pub const fn set_role(&mut self, role: Role) {
         self.role = Some(role);
     }
     #[must_use]

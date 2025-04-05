@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let result = launch(mode, options, opt.deals);
         if let Err(e) = result {
             eprintln!("{e}");
-        };
+        }
     }
     Ok(())
 }

@@ -55,21 +55,23 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
     pub fn finished(&self) -> bool {
         self.game_distributed.finished()
     }
-    pub fn mode(&mut self) -> &Mode {
+    pub const fn mode(&mut self) -> &Mode {
         self.game_distributed.game().mode()
     }
     #[must_use]
-    pub fn player(&self, index: usize) -> &Player {
+    pub const fn player(&self, index: usize) -> &Player {
         self.game_distributed.player(index)
     }
     #[must_use]
-    pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
+    pub const fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         self.game_distributed.player_and_his_game(index)
     }
-    pub fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
+    pub const fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
         self.game_distributed.player_and_his_game_mut(index)
     }
-    pub fn players_and_their_game_mut(&mut self) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
+    pub const fn players_and_their_game_mut(
+        &mut self,
+    ) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
         self.game_distributed.players_and_their_game_mut()
     }
     pub fn play(&mut self) -> Result<(), TarotErrorKind> {

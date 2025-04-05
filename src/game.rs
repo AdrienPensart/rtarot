@@ -77,7 +77,7 @@ impl<const MODE: usize> Game<MODE> {
     pub const fn player(&self, index: usize) -> &Player {
         &self.players[index]
     }
-    pub fn player_mut(&mut self, index: usize) -> &mut Player {
+    pub const fn player_mut(&mut self, index: usize) -> &mut Player {
         &mut self.players[index]
     }
     #[must_use]

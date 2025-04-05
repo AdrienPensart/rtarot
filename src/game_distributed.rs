@@ -22,21 +22,23 @@ pub struct GameDistributed<'a, const MODE: usize> {
 }
 
 impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
-    pub fn game(&mut self) -> &mut Game<MODE> {
+    pub const fn game(&mut self) -> &mut Game<MODE> {
         self.game
     }
-    pub fn players_and_their_game_mut(&mut self) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
+    pub const fn players_and_their_game_mut(
+        &mut self,
+    ) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
         (self.game.players(), &mut self.players_in_game)
     }
     #[must_use]
-    pub fn player(&self, index: usize) -> &Player {
+    pub const fn player(&self, index: usize) -> &Player {
         self.game.player(index)
     }
     #[must_use]
-    pub fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
+    pub const fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
         (self.game.player(index), &self.players_in_game[index])
     }
-    pub fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
+    pub const fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
         (self.game.player(index), &mut self.players_in_game[index])
     }
     pub fn finished(&self) -> bool {
@@ -81,7 +83,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                     }
                     contract = Some(player_contract);
                 }
-            };
+            }
         }
         let Some(contract) = contract else {
             return Ok(None);

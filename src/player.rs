@@ -30,7 +30,7 @@ impl Player {
     }
     #[must_use]
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
     #[must_use]
     pub const fn options(&self) -> &Options {
