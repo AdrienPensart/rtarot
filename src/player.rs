@@ -29,7 +29,7 @@ impl Player {
         self.score
     }
     #[must_use]
-    pub fn name(&self) -> &str {
+    pub const fn name(&self) -> &str {
         self.name.as_str()
     }
     #[must_use]

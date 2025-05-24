@@ -413,15 +413,15 @@ impl PlayerInGame {
         self.owned.count_oudlers()
     }
     #[must_use]
-    pub fn is_first_turn(&self) -> bool {
+    pub const fn is_first_turn(&self) -> bool {
         self.mode.cards_per_player() == self.hand.len()
     }
     #[must_use]
-    pub fn last_turn(&self) -> bool {
+    pub const fn last_turn(&self) -> bool {
         self.hand.is_empty()
     }
     #[must_use]
-    pub fn before_last_turn(&self) -> bool {
+    pub const fn before_last_turn(&self) -> bool {
         self.hand.len() == 1
     }
 
