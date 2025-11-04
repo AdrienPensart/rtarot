@@ -5,10 +5,10 @@ use std::io;
 pub fn read_index() -> usize {
     let mut input = String::new();
     loop {
-        if io::stdin().read_line(&mut input).is_ok() {
-            if let Ok(output) = input.trim().parse::<usize>() {
-                return output;
-            }
+        if io::stdin().read_line(&mut input).is_ok()
+            && let Ok(output) = input.trim().parse::<usize>()
+        {
+            return output;
         }
     }
 }

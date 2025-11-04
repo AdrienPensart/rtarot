@@ -108,11 +108,12 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             if current_player_index == taker_index {
                 current_player.set_team(Team::Attack);
                 current_player.set_role(Role::Taker);
-            } else if let Some(ref card) = callee {
-                if current_player_index != taker_index && current_player.has(card) {
-                    current_player.set_team(Team::Attack);
-                    current_player.set_role(Role::Ally);
-                }
+            } else if let Some(ref card) = callee
+                && current_player_index != taker_index
+                && current_player.has(card)
+            {
+                current_player.set_team(Team::Attack);
+                current_player.set_role(Role::Ally);
             }
         }
 

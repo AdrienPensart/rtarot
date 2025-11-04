@@ -143,7 +143,7 @@ impl PlayerInGame {
             return Err(TarotErrorKind::NoTeamForPlayer(player.name().to_string()));
         };
 
-        if (!self.owned.has_fool() && (self.owned.len() % self.mode.players() != 0))
+        if (!self.owned.has_fool() && !self.owned.len().is_multiple_of(self.mode.players()))
             || (self.owned.has_fool() && (self.owned.len() % self.mode.players() != 1))
         {
             eprintln!("{}", self.owned.len() % self.mode.players());

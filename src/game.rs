@@ -108,7 +108,7 @@ impl<const MODE: usize> Game<MODE> {
         }
         Ok(())
     }
-    fn distribute(&mut self) -> Option<GameDistributed<MODE>> {
+    fn distribute(&'_ mut self) -> Option<GameDistributed<'_, MODE>> {
         let mut players_in_game: [PlayerInGame; MODE] =
             array_init(|i| PlayerInGame::new(self.mode, *self.players[i].options()));
 
