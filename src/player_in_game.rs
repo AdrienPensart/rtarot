@@ -151,7 +151,7 @@ impl PlayerInGame {
         }
 
         if self.is_first_turn() {
-            self.announce_handle();
+            self.announce_handle()?;
         }
 
         let player_name = player.name();
@@ -162,12 +162,12 @@ impl PlayerInGame {
 
         let possible_choices = &self.choices(turn)?;
         if !self.options.quiet {
-            for &possible_choice in possible_choices {
-                println!(
-                    "\t{0: <4} : press {1}",
-                    self.hand[possible_choice], possible_choice
-                );
-            }
+            possible_choices
+                .iter()
+                .filter_map(|index| self.hand.get(*index).map(|value| (index, value)))
+                .for_each(|(index, card)| {
+                    println!("\t{card: <4} : press {index}");
+                });
             turn.called().map_or_else(
                 || println!("{} is first to play:", player.name()),
                 |called| {
@@ -181,11 +181,14 @@ impl PlayerInGame {
         }
 
         let final_choice = if self.options.auto && possible_choices.len() == 1 {
-            possible_choices[0]
+            possible_choices.first().ok_or(TarotErrorKind::NoCard(0))?
         } else if self.options.random {
-            possible_choices[rand::rng().random_range(0..possible_choices.len())]
+            let random_index = rand::rng().random_range(0..possible_choices.len());
+            possible_choices
+                .get(random_index)
+                .ok_or(TarotErrorKind::NoCard(random_index))?
         } else {
-            loop {
+            &loop {
                 let choice_index = read_index();
                 if possible_choices.contains(&choice_index) {
                     break choice_index;
@@ -194,26 +197,28 @@ impl PlayerInGame {
                 }
             }
         };
-        Ok(self.hand.remove(final_choice))
+        Ok(self.hand.remove(*final_choice))
     }
-    #[must_use]
     pub fn choose_contract_among(
         &self,
         player: &Player,
         contracts: &[Contract],
-    ) -> Option<Contract> {
+    ) -> Result<Option<Contract>, TarotErrorKind> {
         let player_name = player.name();
         let contract = if self.options.auto && contracts.len() == 1 {
-            return None;
+            return Ok(None);
         } else if self.options.random {
             if self.options.attack {
-                return None;
+                return Ok(None);
             }
             let random_choice_index = rand::rng().random_range(0..=contracts.len());
             if random_choice_index == 0 {
-                return None;
+                return Ok(None);
             }
-            contracts[random_choice_index - 1]
+            let contract_index = random_choice_index - 1;
+            contracts
+                .get(contract_index)
+                .ok_or(TarotErrorKind::NoContract(contract_index))?
         } else {
             loop {
                 if !self.options.quiet {
@@ -231,9 +236,11 @@ impl PlayerInGame {
                 }
                 let contract_index = read_index();
                 if contract_index == 0 {
-                    return None;
+                    return Ok(None);
                 } else if contract_index < contracts.len() + 1 {
-                    break contracts[contract_index - 1];
+                    break contracts
+                        .get(contract_index - 1)
+                        .ok_or(TarotErrorKind::NoContract(contract_index - 1))?;
                 } else if !self.options.quiet {
                     println!("Error, please retry");
                 }
@@ -242,7 +249,7 @@ impl PlayerInGame {
         if !self.options.quiet {
             println!("{player_name} : {contract} (auto? : {})", self.options.auto);
         }
-        Some(contract)
+        Ok(Some(*contract))
     }
     #[must_use]
     pub fn slam_bonus(&self) -> f64 {
@@ -266,7 +273,7 @@ impl PlayerInGame {
             0.0
         }
     }
-    pub fn announce_slam(&mut self) -> Result<bool, rand_distr::weighted::Error> {
+    pub fn announce_slam(&mut self) -> Result<bool, TarotErrorKind> {
         if self.options.no_slam {
             return Ok(false);
         }
@@ -275,7 +282,10 @@ impl PlayerInGame {
             let weights = vec![99, 1];
             let dist = rand_distr::weighted::WeightedAliasIndex::new(weights)?;
             let mut rng = rand::rng();
-            slams[dist.sample(&mut rng)]
+            let slam_index = dist.sample(&mut rng);
+            *slams
+                .get(slam_index)
+                .ok_or(TarotErrorKind::NoSlam(slam_index))?
         } else {
             loop {
                 if !self.options.quiet {
@@ -287,7 +297,9 @@ impl PlayerInGame {
                 }
                 let slam_index = read_index();
                 if slam_index < slams.len() {
-                    break slams[slam_index];
+                    break *slams
+                        .get(slam_index)
+                        .ok_or(TarotErrorKind::NoSlam(slam_index))?;
                 } else if !self.options.quiet {
                     println!("Error, please retry");
                 }
@@ -295,7 +307,7 @@ impl PlayerInGame {
         };
         Ok(self.slam)
     }
-    pub fn announce_handle(&mut self) {
+    pub fn announce_handle(&mut self) -> Result<(), TarotErrorKind> {
         let mut trumps = self.hand.trumps();
         let discarded_trumps = self.owned.trumps();
         let mut total_trumps = trumps.len() + discarded_trumps.len();
@@ -315,7 +327,10 @@ impl PlayerInGame {
                     Handle::Refused => vec![],
                 };
                 handle = if self.options.random {
-                    handles[rand::rng().random_range(0..handles.len())]
+                    let random_slam_index = rand::rng().random_range(0..handles.len());
+                    *handles
+                        .get(random_slam_index)
+                        .ok_or(TarotErrorKind::NoHandle(random_slam_index))?
                 } else {
                     loop {
                         if !self.options.quiet {
@@ -336,7 +351,9 @@ impl PlayerInGame {
                         }
                         let handle_index = read_index();
                         if handle_index < handles.len() {
-                            break handles[handle_index];
+                            break *handles
+                                .get(handle_index)
+                                .ok_or(TarotErrorKind::NoHandle(handle_index))?;
                         } else if !self.options.quiet {
                             println!("Error, please retry");
                         }
@@ -392,6 +409,7 @@ impl PlayerInGame {
                 Some(handle)
             }
         };
+        Ok(())
     }
     #[must_use]
     pub fn owe_card(&self) -> bool {
@@ -453,7 +471,10 @@ impl PlayerInGame {
             .map(|(c, cv)| Card::normal(c, *cv))
             .collect();
         let callee = if self.options.random {
-            choices[rand::rng().random_range(0..choices.len())]
+            let random_callee_index = rand::rng().random_range(0..choices.len());
+            choices
+                .get(random_callee_index)
+                .ok_or(TarotErrorKind::NoCard(random_callee_index))?
         } else {
             loop {
                 if !self.options.quiet {
@@ -466,7 +487,9 @@ impl PlayerInGame {
                 }
                 let choice_index = read_index();
                 if choice_index < choices.len() {
-                    break choices[choice_index];
+                    break choices
+                        .get(choice_index)
+                        .ok_or(TarotErrorKind::NoCard(choice_index))?;
                 } else if !self.options.quiet {
                     println!("Error, please retry");
                 }
@@ -475,9 +498,9 @@ impl PlayerInGame {
         if !self.options.quiet {
             println!("Called card for ally is {callee}");
         }
-        Ok(Some(callee))
+        Ok(Some(*callee))
     }
-    pub fn discard(&mut self) {
+    pub fn discard(&mut self) -> Result<(), TarotErrorKind> {
         if !self.options.quiet {
             println!("{self}");
         }
@@ -488,15 +511,22 @@ impl PlayerInGame {
             }
             let discardables_indexes = self.hand.discardables(dog_size);
             let discard_index = if self.options.random {
-                discardables_indexes[rand::rng().random_range(0..discardables_indexes.len())]
+                let random_discarded_index =
+                    rand::rng().random_range(0..discardables_indexes.len());
+                *discardables_indexes
+                    .get(random_discarded_index)
+                    .ok_or(TarotErrorKind::NoCard(random_discarded_index))?
             } else {
                 loop {
                     if !self.options.quiet {
                         println!("Hand of taker: {}", self.hand);
                         println!("Possibilities:");
-                        for &i in &discardables_indexes {
-                            println!("\t{0: <4} : press {1}", self.hand[i], i);
-                        }
+                        discardables_indexes
+                            .iter()
+                            .filter_map(|index| self.hand.get(*index).map(|value| (index, value)))
+                            .for_each(|(index, card)| {
+                                println!("\t{card: <4} : press {index}");
+                            });
                         println!("Choose discard : {}", self.owned);
                     }
                     let discard_index = read_index();
@@ -520,6 +550,7 @@ impl PlayerInGame {
             }
         }
         self.hand.sort();
+        Ok(())
     }
     pub fn choices(&self, turn: &Turn) -> Result<Vec<usize>, TarotErrorKind> {
         let mut and_fool: Option<usize> = None;

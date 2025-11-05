@@ -11,8 +11,6 @@ pub enum TarotErrorKind {
     InvalidPlayers(String),
     #[error("Invalid mode")]
     InvalidMode,
-    #[error("Invalid contract")]
-    InvalidContract,
     #[error("Invalid deck : {0}")]
     InvalidDeck(Deck),
     #[error("Invalid case")]
@@ -23,14 +21,33 @@ pub enum TarotErrorKind {
     InvalidScores(String),
     #[error("Invalid number of oudlers : {0}")]
     InvalidOudlersCount(Deck),
-    #[error("No role for player : {0}")]
-    NoRoleForPlayer(String),
     #[error("Invalid color")]
     InvalidColor,
-    #[error("No taker or auctions not finished")]
-    NoTaker,
-    #[error("A player shoud belongs to a team")]
-    NoTeamForPlayer(String),
     #[error("Random number distribution error")]
     WeightedError(#[from] rand_distr::weighted::Error),
+
+    #[error("No handle at index {0}")]
+    NoHandle(usize),
+    #[error("No slam at index {0}")]
+    NoSlam(usize),
+    #[error("No contract at index {0}")]
+    NoContract(usize),
+    #[error("No card at index : {0}")]
+    NoCard(usize),
+    #[error("No player at index : {0}")]
+    NoPlayer(usize),
+    #[error("No role for player : {0}")]
+    NoRoleForPlayer(String),
+    #[error("No taker or auctions not finished")]
+    NoTaker(usize),
+    #[error("No ally at index {0}")]
+    NoAlly(usize),
+    #[error("No defenser at index {0}")]
+    NoDefenser(usize),
+    #[error("No attacker at index {0}")]
+    NoAttacker(usize),
+    #[error("No master in turn at index {0}")]
+    NoMaster(usize),
+    #[error("A player shoud belongs to a team")]
+    NoTeamForPlayer(String),
 }

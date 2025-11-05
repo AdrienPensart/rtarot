@@ -42,7 +42,7 @@ impl Turn {
     }
     #[must_use]
     pub fn master_card(&self) -> Option<&Card> {
-        self.master_index.map(|index| &self.cards[index])
+        self.master_index.map(|index| self.cards.get(index))?
     }
 }
 

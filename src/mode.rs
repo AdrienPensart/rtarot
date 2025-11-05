@@ -75,14 +75,14 @@ impl Mode {
     pub const fn dog_size(&self) -> usize {
         match self {
             Self::Five => 3,
-            _ => 6,
+            Self::Four | Self::Three => 6,
         }
     }
     #[must_use]
     pub const fn cards_per_turn(&self) -> usize {
         match self {
             Self::Three => 4,
-            _ => 3,
+            Self::Five | Self::Four => 3,
         }
     }
     #[must_use]

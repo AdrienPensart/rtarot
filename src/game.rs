@@ -1,4 +1,4 @@
-use array_init::{array_init, try_array_init};
+use array_init::try_array_init;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
@@ -73,12 +73,15 @@ impl<const MODE: usize> Game<MODE> {
     pub const fn mode(&self) -> &Mode {
         &self.mode
     }
-    #[must_use]
-    pub const fn player(&self, index: usize) -> &Player {
-        &self.players[index]
+    pub fn player(&self, index: usize) -> Result<&Player, TarotErrorKind> {
+        self.players
+            .get(index)
+            .ok_or(TarotErrorKind::NoPlayer(index))
     }
-    pub const fn player_mut(&mut self, index: usize) -> &mut Player {
-        &mut self.players[index]
+    pub fn player_mut(&mut self, index: usize) -> Result<&mut Player, TarotErrorKind> {
+        self.players
+            .get_mut(index)
+            .ok_or(TarotErrorKind::NoPlayer(index))
     }
     #[must_use]
     pub const fn players(&self) -> &[Player; MODE] {
@@ -89,7 +92,7 @@ impl<const MODE: usize> Game<MODE> {
             if !self.options.quiet {
                 println!("Deals left : {deals}");
             }
-            if let Some(mut game_distributed) = self.distribute() {
+            if let Ok(Some(mut game_distributed)) = self.distribute() {
                 if let Some(mut game_started) = game_distributed.bidding_and_discard()? {
                     while !game_started.finished() {
                         game_started.play()?;
@@ -108,9 +111,11 @@ impl<const MODE: usize> Game<MODE> {
         }
         Ok(())
     }
-    fn distribute(&'_ mut self) -> Option<GameDistributed<'_, MODE>> {
+    fn distribute(&'_ mut self) -> Result<Option<GameDistributed<'_, MODE>>, TarotErrorKind> {
         let mut players_in_game: [PlayerInGame; MODE] =
-            array_init(|i| PlayerInGame::new(self.mode, *self.players[i].options()));
+            try_array_init(|i| -> Result<PlayerInGame, TarotErrorKind> {
+                Ok(PlayerInGame::new(self.mode, *self.player(i)?.options()))
+            })?;
 
         let mut new_deck = Deck::random();
         let mut dog = new_deck.give(self.mode.dog_size());
@@ -125,15 +130,15 @@ impl<const MODE: usize> Game<MODE> {
                 if !self.options.quiet {
                     dbg!("Petit sec, cancel the game");
                 }
-                return None;
+                return Ok(None);
             }
         }
-        Some(GameDistributed::new(
+        Ok(Some(GameDistributed::new(
             self,
             self.options,
             dog,
             players_in_game,
-        ))
+        )))
     }
     pub fn rotate_at(&mut self, index: usize) {
         self.players.rotate_left(index);

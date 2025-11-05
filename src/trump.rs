@@ -96,13 +96,53 @@ impl Representation for Trump {
     fn colored_symbol(&self) -> ColoredString {
         match self {
             Self::Fool => self.symbol().normal(),
-            _ => "#".color(self.color()),
+            Self::Petit
+            | Self::_2
+            | Self::_3
+            | Self::_4
+            | Self::_5
+            | Self::_6
+            | Self::_7
+            | Self::_8
+            | Self::_9
+            | Self::_10
+            | Self::_11
+            | Self::_12
+            | Self::_13
+            | Self::_14
+            | Self::_15
+            | Self::_16
+            | Self::_17
+            | Self::_18
+            | Self::_19
+            | Self::_20
+            | Self::_21 => "#".color(self.color()),
         }
     }
     fn repr(&self) -> ColoredString {
         match self {
             Self::Fool => self.symbol().normal(),
-            _ => format!("#{}", self.symbol()).color(self.color()),
+            Self::Petit
+            | Self::_2
+            | Self::_3
+            | Self::_4
+            | Self::_5
+            | Self::_6
+            | Self::_7
+            | Self::_8
+            | Self::_9
+            | Self::_10
+            | Self::_11
+            | Self::_12
+            | Self::_13
+            | Self::_14
+            | Self::_15
+            | Self::_16
+            | Self::_17
+            | Self::_18
+            | Self::_19
+            | Self::_20
+            | Self::_21 => format!("#{}", self.symbol()).color(self.color()),
         }
     }
     fn full_repr(&self) -> ColoredString {

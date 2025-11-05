@@ -40,7 +40,9 @@ impl<const MODE: usize> fmt::Display for GameStarted<'_, MODE> {
         writeln!(f, "Attack cards : {}", self.attack_cards)?;
         writeln!(f, "Players : ")?;
         for index in 0..MODE {
-            let (player, player_in_game) = self.player_and_his_game(index);
+            let Ok((player, player_in_game)) = self.player_and_his_game(index) else {
+                return Err(fmt::Error);
+            };
             writeln!(f, "\t{player} {player_in_game}")?;
         }
         Ok(())
@@ -58,15 +60,22 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
     pub const fn mode(&mut self) -> &Mode {
         self.game_distributed.game().mode()
     }
-    #[must_use]
-    pub const fn player(&self, index: usize) -> &Player {
+    pub fn player(&self, index: usize) -> Result<&Player, TarotErrorKind> {
         self.game_distributed.player(index)
     }
-    #[must_use]
-    pub const fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
+    fn player_mut(&mut self, index: usize) -> Result<&mut Player, TarotErrorKind> {
+        self.game_distributed.player_mut(index)
+    }
+    pub fn player_and_his_game(
+        &self,
+        index: usize,
+    ) -> Result<(&Player, &PlayerInGame), TarotErrorKind> {
         self.game_distributed.player_and_his_game(index)
     }
-    pub const fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
+    pub fn player_and_his_game_mut(
+        &mut self,
+        index: usize,
+    ) -> Result<(&Player, &mut PlayerInGame), TarotErrorKind> {
         self.game_distributed.player_and_his_game_mut(index)
     }
     pub const fn players_and_their_game_mut(
@@ -80,7 +89,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         let quiet = self.options.quiet;
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
-                self.player_and_his_game_mut(current_player_index);
+                self.player_and_his_game_mut(current_player_index)?;
             let current_player_name = current_player.name();
 
             if !quiet {
@@ -121,9 +130,13 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
                 if let Some(master) = turn.master_card() {
                     if master.master(card) {
                         if !quiet {
-                            let master_player_name = self.player(master_player_index).name();
+                            let master_player =
+                                self.game_distributed
+                                    .player(master_player_index)
+                                    .map_err(|_| TarotErrorKind::NoMaster(master_player_index))?;
                             println!(
-                                "Master card is {master}, so player {master_player_name} stays master",
+                                "Master card is {master}, so player {} stays master",
+                                master_player.name()
                             );
                         }
                     } else {
@@ -145,7 +158,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
                     turn.master_index = Some(turn.len() - 1);
                 }
             }
-            if !self.options.quiet {
+            if !quiet {
                 println!("{turn}");
             }
         }
@@ -161,11 +174,16 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         }
 
         let (players, players_in_game) = self.players_and_their_game_mut();
-        let master_player_name = players[master_player_index].name();
-        let master_player_in_game = &mut players_in_game[master_player_index];
+        let Some(master) = players.get(master_player_index) else {
+            return Err(TarotErrorKind::NoMaster(master_player_index));
+        };
         if !quiet {
-            println!("Player {master_player_name} has win turn");
+            println!("Player {} has win turn", master.name());
         }
+
+        let Some(master_player_in_game) = players_in_game.get_mut(master_player_index) else {
+            return Err(TarotErrorKind::NoMaster(master_player_index));
+        };
         // RULE: petit au bout works for last turn, or before last turn if a slam is occuring
         let last_turn = master_player_in_game.last_turn();
         if last_turn && !quiet {
@@ -177,9 +195,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         }
 
         let Some(master_player_team) = master_player_in_game.team() else {
-            return Err(TarotErrorKind::NoTeamForPlayer(
-                master_player_name.to_string(),
-            ));
+            return Err(TarotErrorKind::NoTeamForPlayer(master.name().to_string()));
         };
 
         let turn_cards = turn.take_cards_except_fool();
@@ -188,7 +204,8 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         {
             if !quiet {
                 println!(
-                    "{master_player_name} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points",
+                    "{} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points",
+                    master.name()
                 );
             }
             // wait_input();
@@ -223,7 +240,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         let quiet = self.options.quiet;
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
-                self.player_and_his_game_mut(current_player_index);
+                self.player_and_his_game_mut(current_player_index)?;
 
             let Some(role) = current_player_in_game.role() else {
                 return Err(TarotErrorKind::NoRoleForPlayer(
@@ -263,36 +280,67 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             (owning_card_player_index, missing_card_player_index)
         {
             let (players, players_in_game) = self.players_and_their_game_mut();
-            let owning_card_player_name = players[owning_card_player_index].name();
-            players_in_game[owning_card_player_index].give_low().map_or_else(
-                || if !quiet {
-                    println!("Player {owning_card_player_name} cannot give a low card");
-                }, |low_card| {
-                    let missing_card_player_name = players[missing_card_player_index].name();
-                    let missing_card_player_in_game = &mut players_in_game[missing_card_player_index];
-                    missing_card_player_in_game.push_owned(low_card);
-                    if !quiet {
-                        println!("Player {owning_card_player_name} own a card to {missing_card_player_name}, giving a {low_card} in exchange");
-                    }
+            let Some(owning_card_player) = players.get(owning_card_player_index) else {
+                return Err(TarotErrorKind::NoPlayer(owning_card_player_index));
+            };
+
+            if let Some(low_card) = players_in_game
+                .get_mut(owning_card_player_index)
+                .and_then(PlayerInGame::give_low)
+            {
+                let Some(missing_card_player) = players.get(missing_card_player_index) else {
+                    return Err(TarotErrorKind::NoPlayer(missing_card_player_index));
+                };
+                let Some(missing_card_player_in_game) =
+                    players_in_game.get_mut(missing_card_player_index)
+                else {
+                    return Err(TarotErrorKind::NoPlayer(missing_card_player_index));
+                };
+
+                missing_card_player_in_game.push_owned(low_card);
+                if !quiet {
+                    println!(
+                        "Player {} own a card to {}, giving a {low_card} in exchange",
+                        owning_card_player.name(),
+                        missing_card_player.name()
+                    );
                 }
-            );
+            } else {
+                println!(
+                    "Player {} cannot give a low card",
+                    owning_card_player.name()
+                );
+            }
         }
 
         let taker_index = self.taker_index;
         if let Some(ally_index) = ally_index {
             let (players, players_in_game) = self.players_and_their_game_mut();
-            let ally_name = &players[ally_index].name();
-            let ally_in_game = &mut players_in_game[ally_index];
+            let Some(ally) = players.get(ally_index) else {
+                return Err(TarotErrorKind::NoAlly(ally_index));
+            };
+
+            let Some(ally_in_game) = players_in_game.get_mut(ally_index) else {
+                return Err(TarotErrorKind::NoAlly(ally_index));
+            };
+
             let ally_cards = ally_in_game.all_cards();
-            let taker_name = &players[taker_index].name();
-            let taker_in_game = &mut players_in_game[taker_index];
+
+            let Some(taker) = players.get(taker_index) else {
+                return Err(TarotErrorKind::NoTaker(taker_index));
+            };
+
             if !quiet {
-                println!("{ally_name} gives his card to {taker_name}");
+                println!("{} gives his card to {}", ally.name(), taker.name());
             }
+
+            let Some(taker_in_game) = players_in_game.get_mut(taker_index) else {
+                return Err(TarotErrorKind::NoTaker(taker_index));
+            };
             taker_in_game.extend_owned(&ally_cards);
         }
 
-        let (taker, taker_in_game) = self.player_and_his_game_mut(self.taker_index);
+        let (taker, taker_in_game) = self.player_and_his_game_mut(self.taker_index)?;
         let slam_bonus = taker_in_game.slam_bonus();
         let taker_points = taker_in_game.points();
         let points_for_oudlers = taker_in_game.points_for_oudlers()?;
@@ -313,13 +361,13 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             }
             (taker_points - points_for_oudlers + BASE_CONTRACT_POINTS) * self.contract.multiplier()
         } else {
-            if !self.options.quiet {
+            if !quiet {
                 let total = taker_points - points_for_oudlers - BASE_CONTRACT_POINTS;
                 println!("Contract total: {total}");
             }
             (taker_points - points_for_oudlers - BASE_CONTRACT_POINTS) * self.contract.multiplier()
         };
-        if !self.options.quiet {
+        if !quiet {
             println!(
                 "Taker contract: {} (x{})",
                 self.contract,
@@ -331,19 +379,19 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         let points_petit_au_bout = 10.0 * self.contract.multiplier();
         let petit_au_bout_bonus = match self.petit_au_bout_for_team {
             Some(Team::Defense) => {
-                if !self.options.quiet {
+                if !quiet {
                     println!("Petit au bout for defense: -{points_petit_au_bout}");
                 }
                 -points_petit_au_bout
             }
             Some(Team::Attack) => {
-                if !self.options.quiet {
+                if !quiet {
                     println!("Petit au bout for attack: {points_petit_au_bout}");
                 }
                 points_petit_au_bout
             }
             None => {
-                if !self.options.quiet {
+                if !quiet {
                     println!("No petit au bout bonus");
                 }
                 0.0
@@ -353,65 +401,53 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         let ratio = self.mode().ratio(ally_index.is_some());
         let points = contract_points + petit_au_bout_bonus + handle_bonuses + slam_bonus;
 
+        let Ok(taker) = self.player_mut(self.taker_index) else {
+            return Err(TarotErrorKind::NoTaker(self.taker_index));
+        };
         if contract_points >= OrderedFloat(0.0) {
-            self.game_distributed
-                .game()
-                .player_mut(self.taker_index)
-                .add_score(ratio * points);
+            taker.add_score(ratio * points);
         } else {
-            self.game_distributed
-                .game()
-                .player_mut(self.taker_index)
-                .add_score(-ratio * points);
+            taker.add_score(-ratio * points);
         }
 
-        if !self.options.quiet {
+        if !quiet {
             println!("Total handle bonuses: {handle_bonuses}");
             println!("Taker points: {points}");
-            println!(
-                "Taker total points: {}",
-                self.game_distributed
-                    .game()
-                    .player(self.taker_index)
-                    .score()
-            );
+            let taker = self
+                .game_distributed
+                .game()
+                .player(self.taker_index)
+                .map_err(|_| TarotErrorKind::NoTaker(self.taker_index))?;
+            println!("Taker total points: {}", taker.score());
         }
 
         if let Some(ally_index) = ally_index {
+            let Ok(ally) = self.player_mut(ally_index) else {
+                return Err(TarotErrorKind::NoAlly(ally_index));
+            };
             if contract_points >= OrderedFloat(0.0) {
-                self.game_distributed
-                    .game()
-                    .player_mut(ally_index)
-                    .add_score(points);
+                ally.add_score(points);
             } else {
-                self.game_distributed
-                    .game()
-                    .player_mut(ally_index)
-                    .add_score(-points);
+                ally.add_score(-points);
             }
-            if !self.options.quiet {
-                println!(
-                    "Ally total points: {}",
-                    self.game_distributed.game().player(ally_index).score()
-                );
+            if !quiet {
+                println!("Ally total points: {}", ally.score());
             }
         }
 
         for defenser_index in defense {
+            let defenser = self
+                .game_distributed
+                .game()
+                .player_mut(defenser_index)
+                .map_err(|_| TarotErrorKind::NoDefenser(defenser_index))?;
             if contract_points >= OrderedFloat(0.0) {
-                self.game_distributed
-                    .game()
-                    .player_mut(defenser_index)
-                    .add_score(-points);
+                defenser.add_score(-points);
             } else {
-                self.game_distributed
-                    .game()
-                    .player_mut(defenser_index)
-                    .add_score(points);
+                defenser.add_score(points);
             }
-            if !self.options.quiet {
-                let defenser = self.game_distributed.game().player(defenser_index);
-                println!("Defenser : {defenser}");
+            if !quiet {
+                println!("Defenser : {}", defenser.name());
             }
         }
         self.is_consistent()

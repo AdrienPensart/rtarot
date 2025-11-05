@@ -48,7 +48,16 @@ impl Points for SuitValue {
             Self::Knight => 2.5,
             Self::Queen => 3.5,
             Self::King => 4.5,
-            _ => 0.5,
+            Self::_1
+            | Self::_2
+            | Self::_3
+            | Self::_4
+            | Self::_5
+            | Self::_6
+            | Self::_7
+            | Self::_8
+            | Self::_9
+            | Self::_10 => 0.5,
         };
         OrderedFloat(points)
     }

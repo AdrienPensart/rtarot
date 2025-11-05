@@ -33,3 +33,8 @@ nursery = { level = "deny", priority = -1 }
 unwrap_used = "deny"
 must_use_candidate = "allow"
 missing_errors_doc = "allow"
+indexing_slicing = "deny"
+fallible_impl_from = "deny"
+wildcard_enum_match_arm = "deny"
+unneeded_field_pattern = "deny"
+fn_params_excessive_bools = "deny"

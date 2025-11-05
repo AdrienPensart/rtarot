@@ -30,16 +30,33 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     ) -> (&[Player; MODE], &mut [PlayerInGame; MODE]) {
         (self.game.players(), &mut self.players_in_game)
     }
-    #[must_use]
-    pub const fn player(&self, index: usize) -> &Player {
+    pub fn player(&self, index: usize) -> Result<&Player, TarotErrorKind> {
         self.game.player(index)
     }
-    #[must_use]
-    pub const fn player_and_his_game(&self, index: usize) -> (&Player, &PlayerInGame) {
-        (self.game.player(index), &self.players_in_game[index])
+    pub fn player_mut(&mut self, index: usize) -> Result<&mut Player, TarotErrorKind> {
+        self.game.player_mut(index)
     }
-    pub const fn player_and_his_game_mut(&mut self, index: usize) -> (&Player, &mut PlayerInGame) {
-        (self.game.player(index), &mut self.players_in_game[index])
+    pub fn player_and_his_game(
+        &self,
+        index: usize,
+    ) -> Result<(&Player, &PlayerInGame), TarotErrorKind> {
+        let (Ok(player), Some(player_in_game)) =
+            (self.game.player(index), self.players_in_game.get(index))
+        else {
+            return Err(TarotErrorKind::NoPlayer(index));
+        };
+        Ok((player, player_in_game))
+    }
+    pub fn player_and_his_game_mut(
+        &mut self,
+        index: usize,
+    ) -> Result<(&Player, &mut PlayerInGame), TarotErrorKind> {
+        let (Ok(player), Some(player_in_game)) =
+            (self.game.player(index), self.players_in_game.get_mut(index))
+        else {
+            return Err(TarotErrorKind::NoPlayer(index));
+        };
+        Ok((player, player_in_game))
     }
     pub fn finished(&self) -> bool {
         self.players_in_game.iter().all(PlayerInGame::last_turn)
@@ -51,6 +68,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     pub fn bidding_and_discard(
         &'a mut self,
     ) -> Result<Option<GameStarted<'a, MODE>>, TarotErrorKind> {
+        let quiet = self.options.quiet;
         let mut contracts: Vec<Contract> = Contract::iter().collect();
         let mut slam_index: Option<usize> = None;
         let mut taker_index: Option<usize> = None;
@@ -59,9 +77,9 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         for (current_player_index, current_player_in_game) in
             self.players_in_game.iter_mut().enumerate()
         {
-            let current_player = &self.game.player(current_player_index);
+            let current_player = self.game.player(current_player_index)?;
             let player_contract =
-                current_player_in_game.choose_contract_among(current_player, &contracts);
+                current_player_in_game.choose_contract_among(current_player, &contracts)?;
             match (contract, player_contract) {
                 (None | Some(_), None) => {}
                 (None | Some(_), Some(player_contract)) => {
@@ -100,7 +118,10 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             self.rotate_at(slammer);
         }
 
-        let callee = self.players_in_game[taker_index].call()?;
+        let Some(taker) = self.players_in_game.get(taker_index) else {
+            return Err(TarotErrorKind::NoTaker(taker_index));
+        };
+        let callee = taker.call()?;
         for (current_player_index, current_player) in self.players_in_game.iter_mut().enumerate() {
             current_player.set_callee(callee);
             current_player.set_team(Team::Defense);
@@ -117,7 +138,7 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
             }
         }
 
-        let (attackers, defensers): (Vec<_>, Vec<_>) = self
+        let (attacker_indices, defenser_indices): (Vec<_>, Vec<_>) = self
             .players_in_game
             .iter()
             .enumerate()
@@ -129,34 +150,47 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
                 }
             });
 
-        for attacker_index in attackers {
-            if !self.players_in_game[attacker_index].is_taker() {
+        for attacker_index in attacker_indices {
+            let attacker_in_game = self
+                .players_in_game
+                .get_mut(attacker_index)
+                .ok_or(TarotErrorKind::NoAttacker(attacker_index))?;
+
+            if !attacker_in_game.is_taker() {
                 continue;
             }
 
+            let taker = self
+                .game
+                .player(attacker_index)
+                .map_err(|_| TarotErrorKind::NoTaker(attacker_index))?;
+
             match contract {
                 Contract::GardeSans => {
-                    if !self.options.quiet {
+                    if !quiet {
                         println!("Attacker keeps dog because GardeSans");
                     }
-                    self.players_in_game[attacker_index].set_discard(&self.dog);
+                    attacker_in_game.set_discard(&self.dog);
                 }
                 Contract::GardeContre => {
-                    if let Some(first_defenser_index) = defensers.first() {
-                        if !self.options.quiet {
+                    if let Some(first_defenser_index) = defenser_indices.first() {
+                        if !quiet {
                             println!("Attacker gives dog to first defenser because GardeContre");
                         }
-                        self.players_in_game[*first_defenser_index].set_discard(&self.dog);
+                        let Some(defenser) = self.players_in_game.get_mut(*first_defenser_index)
+                        else {
+                            return Err(TarotErrorKind::NoDefenser(*first_defenser_index));
+                        };
+                        defenser.set_discard(&self.dog);
                     }
                 }
-                _ => {
-                    if !self.options.quiet {
-                        let taker_name = self.player(attacker_index).name();
+                Contract::Petite | Contract::Garde => {
+                    if !quiet {
                         println!("In the dog, there was : {}", self.dog);
-                        println!("Taker {taker_name} received the dog");
+                        println!("Taker {} received the dog", taker.name());
                     }
-                    self.players_in_game[attacker_index].extend_hand(&self.dog);
-                    self.players_in_game[attacker_index].discard();
+                    attacker_in_game.extend_hand(&self.dog);
+                    attacker_in_game.discard()?;
                 }
             }
         }
