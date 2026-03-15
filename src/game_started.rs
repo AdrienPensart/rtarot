@@ -376,7 +376,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             println!("Taker contract points: {contract_points}");
         }
 
-        let points_petit_au_bout = 10.0 * self.contract.multiplier();
+        let points_petit_au_bout = OrderedFloat(10.0) * self.contract.multiplier();
         let petit_au_bout_bonus = match self.petit_au_bout_for_team {
             Some(Team::Defense) => {
                 if !quiet {
@@ -394,7 +394,7 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
                 if !quiet {
                     println!("No petit au bout bonus");
                 }
-                0.0
+                OrderedFloat(0.0)
             }
         };
 
@@ -454,12 +454,270 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
     }
 }
 
-#[test]
-fn game_started_tests() {
-    use crate::game::Game;
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use crate::contract::Contract;
+    use crate::game::{Game, launch};
+    use crate::mode::Mode;
+    use crate::options::Options;
+    use ordered_float::OrderedFloat;
+    use strum::IntoEnumIterator;
 
-    let options = Options::default();
-    let _game = Game::<{ Mode::Four.players() }>::new(options);
+    fn default_test_options() -> Options {
+        Options {
+            random: true,
+            test: true,
+            auto: true,
+            quiet: true,
+            no_slam: false,
+            attack: false,
+        }
+    }
 
-    // let game_distributed = GameDistributed::new(game, options, )
+    // --- Three-player mode (1 vs 2) ---
+
+    #[test]
+    fn three_player_single_deal_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(1), Ok(()));
+    }
+
+    #[test]
+    fn three_player_multiple_deals_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn three_player_no_slam() {
+        let options = Options {
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn three_player_scores_sum_to_zero() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn three_player_launch_integration() {
+        assert_eq!(launch(Mode::Three, default_test_options(), 3), Ok(()));
+    }
+
+    // --- Four-player mode (1 vs 3, standard) ---
+
+    #[test]
+    fn four_player_single_deal_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(1), Ok(()));
+    }
+
+    #[test]
+    fn four_player_multiple_deals_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn four_player_no_slam() {
+        let options = Options {
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn four_player_scores_sum_to_zero() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn four_player_launch_integration() {
+        assert_eq!(launch(Mode::Four, default_test_options(), 3), Ok(()));
+    }
+
+    // --- Five-player mode (2 vs 3, call a king) ---
+
+    #[test]
+    fn five_player_single_deal_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(1), Ok(()));
+    }
+
+    #[test]
+    fn five_player_multiple_deals_consistent() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn five_player_no_slam() {
+        let options = Options {
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn five_player_scores_sum_to_zero() {
+        let options = default_test_options();
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(5), Ok(()));
+    }
+
+    #[test]
+    fn five_player_launch_integration() {
+        assert_eq!(launch(Mode::Five, default_test_options(), 3), Ok(()));
+    }
+
+    // --- Cross-mode tests ---
+
+    #[test]
+    fn all_modes_single_deal() {
+        let options = default_test_options();
+        for mode in Mode::iter() {
+            assert_eq!(launch(mode, options, 1), Ok(()));
+        }
+    }
+
+    #[test]
+    fn all_modes_many_deals() {
+        let options = default_test_options();
+        for mode in Mode::iter() {
+            assert_eq!(launch(mode, options, 10), Ok(()));
+        }
+    }
+
+    #[test]
+    fn all_modes_no_slam() {
+        let options = Options {
+            no_slam: true,
+            ..default_test_options()
+        };
+        for mode in Mode::iter() {
+            assert_eq!(launch(mode, options, 3), Ok(()));
+        }
+    }
+
+    // --- Contract multiplier sanity ---
+
+    #[test]
+    fn contract_multipliers() {
+        assert_eq!(Contract::Petite.multiplier(), OrderedFloat(1.0));
+        assert_eq!(Contract::Garde.multiplier(), OrderedFloat(2.0));
+        assert_eq!(Contract::GardeSans.multiplier(), OrderedFloat(4.0));
+        assert_eq!(Contract::GardeContre.multiplier(), OrderedFloat(6.0));
+    }
+
+    // --- Attack mode (attack: true, random: true) ---
+
+    #[test]
+    fn three_player_attack_mode() {
+        let options = Options {
+            attack: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn four_player_attack_mode() {
+        let options = Options {
+            attack: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn five_player_attack_mode() {
+        let options = Options {
+            attack: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn all_modes_attack() {
+        let options = Options {
+            attack: true,
+            ..default_test_options()
+        };
+        for mode in Mode::iter() {
+            assert_eq!(launch(mode, options, 3), Ok(()));
+        }
+    }
+
+    #[test]
+    fn three_player_attack_no_slam() {
+        let options = Options {
+            attack: true,
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn four_player_attack_no_slam() {
+        let options = Options {
+            attack: true,
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    #[test]
+    fn five_player_attack_no_slam() {
+        let options = Options {
+            attack: true,
+            no_slam: true,
+            ..default_test_options()
+        };
+        let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
+        assert_eq!(game.start(3), Ok(()));
+    }
+
+    // --- Stress: large number of deals per mode ---
+
+    #[test]
+    fn three_player_stress() {
+        assert_eq!(launch(Mode::Three, default_test_options(), 20), Ok(()));
+    }
+
+    #[test]
+    fn four_player_stress() {
+        assert_eq!(launch(Mode::Four, default_test_options(), 20), Ok(()));
+    }
+
+    #[test]
+    fn five_player_stress() {
+        assert_eq!(launch(Mode::Five, default_test_options(), 20), Ok(()));
+    }
 }
