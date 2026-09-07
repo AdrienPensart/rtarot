@@ -146,7 +146,7 @@ impl Deck {
     }
     #[must_use]
     pub fn give_all(&mut self) -> Self {
-        Self(self.0.drain(..).collect())
+        Self(std::mem::take(&mut self.0))
     }
     pub fn give_low(&mut self) -> Option<Card> {
         self.iter()
@@ -172,7 +172,7 @@ impl Deck {
         let mut buffers: BTreeMap<usize, String> = BTreeMap::new();
         for card in self.iter() {
             for (index, line) in card.full_repr().lines().enumerate() {
-                let line_and_reset = format!("{}\x1B[0m", &line.color(card.color()));
+                let line_and_reset = format!("{}\x1B[0m", line.color(card.color()));
                 buffers
                     .entry(index)
                     .and_modify(|buffer| {
