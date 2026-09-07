@@ -1,10 +1,9 @@
-use colored::{ColoredString, Colorize};
 use derive_more::{Deref, Index, IntoIterator};
 use derive_new::new;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
+use rand::Rng;
 use rand::seq::SliceRandom;
-use std::collections::BTreeMap;
 use std::fmt;
 use strum::IntoEnumIterator;
 
@@ -14,7 +13,7 @@ use crate::errors::TarotErrorKind;
 use crate::points::Points;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
-use crate::traits::{Discardable, Representation};
+use crate::traits::Discardable;
 use crate::trump::Trump;
 
 #[derive(new, Default, PartialEq, Eq, Clone, Debug, IntoIterator, Index, Deref)]
@@ -22,18 +21,25 @@ use crate::trump::Trump;
 pub struct Deck(Vec<Card>);
 
 impl Deck {
-    pub fn random() -> Self {
-        let mut d: Vec<Card> = Trump::iter()
-            .map(Card::Trump)
-            .chain(
-                Suit::iter()
-                    .cartesian_product(SuitValue::iter())
-                    .map(|(c, cv)| Card::normal(c, cv)),
-            )
-            .collect();
-        let mut rng = rand::rng();
-        d.shuffle(&mut rng);
-        Self(d)
+    /// The 78 cards, in a fixed order.
+    #[must_use]
+    pub fn full() -> Self {
+        Self(
+            Trump::iter()
+                .map(Card::Trump)
+                .chain(
+                    Suit::iter()
+                        .cartesian_product(SuitValue::iter())
+                        .map(|(c, cv)| Card::normal(c, cv)),
+                )
+                .collect(),
+        )
+    }
+    /// The 78 cards, shuffled with the caller's generator.
+    pub fn shuffled<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let mut deck = Self::full();
+        deck.0.shuffle(rng);
+        deck
     }
     #[must_use]
     pub fn trumps_and_colors(&self) -> (Vec<Card>, Vec<Card>) {
@@ -173,45 +179,11 @@ impl Deck {
     pub fn sort(&mut self) {
         self.0.sort();
     }
-    #[must_use]
-    pub fn full_repr(&self) -> ColoredString {
-        let mut buffers: BTreeMap<usize, String> = BTreeMap::new();
-        for card in self.iter() {
-            for (index, line) in card.full_repr().lines().enumerate() {
-                let line_and_reset = format!("{}\x1B[0m", line.color(card.color()));
-                buffers
-                    .entry(index)
-                    .and_modify(|buffer| {
-                        buffer.push_str(&line_and_reset);
-                    })
-                    .or_insert(line_and_reset);
-            }
-        }
-        ColoredString::from(buffers.values().join("\n").as_str())
-    }
 }
 
 impl fmt::Display for Deck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut last_color: Option<&Suit> = None;
-        let (trumps, colors) = self.trumps_and_colors();
-        if !trumps.is_empty() {
-            write!(f, "\n\t{}", trumps.iter().join(" "))?;
-        }
-        for colored in &colors {
-            if let Card::Normal(n) = colored {
-                if last_color == Some(n.suit()) {
-                    write!(f, "{n} ")?;
-                } else {
-                    last_color = Some(n.suit());
-                    match last_color {
-                        None => write!(f, "\t{n}")?,
-                        _ => write!(f, "\n\t{n} ")?,
-                    }
-                }
-            }
-        }
-        Ok(())
+        write!(f, "{}", self.iter().join(" "))
     }
 }
 
@@ -241,7 +213,7 @@ mod tests {
 
     #[test]
     fn a_full_deck_is_a_chelem_worth_all_the_points() {
-        let deck = Deck::random();
+        let deck = Deck::full();
         assert_eq!(deck.len(), MAX_CARDS);
         assert_eq!(deck.points(), MAX_POINTS);
         assert!(deck.is_chelem());
@@ -249,7 +221,7 @@ mod tests {
 
     #[test]
     fn an_incomplete_deck_is_not_a_chelem() {
-        let mut deck = Deck::random();
+        let mut deck = Deck::full();
         let _removed = deck.remove(0);
         assert!(!deck.is_chelem());
     }

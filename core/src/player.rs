@@ -2,14 +2,10 @@ use derive_new::new;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
-use crate::mode::Mode;
-use crate::options::Options;
-
+/// A player as it lives across deals: a name and a running score.
 #[derive(new, Eq, PartialEq, Clone, Debug)]
 pub struct Player {
     name: String,
-    mode: Mode,
-    options: Options,
     #[new(default)]
     score: OrderedFloat<f64>,
 }
@@ -31,9 +27,5 @@ impl Player {
     #[must_use]
     pub const fn name(&self) -> &str {
         self.name.as_str()
-    }
-    #[must_use]
-    pub const fn options(&self) -> &Options {
-        &self.options
     }
 }

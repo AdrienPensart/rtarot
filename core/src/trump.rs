@@ -1,6 +1,5 @@
 use crate::points::Points;
-use crate::traits::{Discardable, Representation};
-use colored::{ColoredString, Colorize};
+use crate::traits::{Color, Discardable, Representation};
 use indoc::indoc;
 use ordered_float::OrderedFloat;
 use std::fmt;
@@ -34,7 +33,11 @@ pub enum Trump {
 
 impl fmt::Display for Trump {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.repr())
+        if matches!(self, Self::Fool) {
+            write!(f, "{}", self.symbol())
+        } else {
+            write!(f, "#{}", self.symbol())
+        }
     }
 }
 
@@ -64,8 +67,8 @@ impl Points for Trump {
 }
 
 impl Representation for Trump {
-    fn color(&self) -> &'static str {
-        "cyan"
+    fn color(&self) -> Color {
+        Color::Cyan
     }
     fn symbol(&self) -> &'static str {
         match self {
@@ -93,60 +96,8 @@ impl Representation for Trump {
             Self::_21 => "21",
         }
     }
-    fn colored_symbol(&self) -> ColoredString {
+    fn art(&self) -> &'static str {
         match self {
-            Self::Fool => self.symbol().normal(),
-            Self::Petit
-            | Self::_2
-            | Self::_3
-            | Self::_4
-            | Self::_5
-            | Self::_6
-            | Self::_7
-            | Self::_8
-            | Self::_9
-            | Self::_10
-            | Self::_11
-            | Self::_12
-            | Self::_13
-            | Self::_14
-            | Self::_15
-            | Self::_16
-            | Self::_17
-            | Self::_18
-            | Self::_19
-            | Self::_20
-            | Self::_21 => "#".color(self.color()),
-        }
-    }
-    fn repr(&self) -> ColoredString {
-        match self {
-            Self::Fool => self.symbol().normal(),
-            Self::Petit
-            | Self::_2
-            | Self::_3
-            | Self::_4
-            | Self::_5
-            | Self::_6
-            | Self::_7
-            | Self::_8
-            | Self::_9
-            | Self::_10
-            | Self::_11
-            | Self::_12
-            | Self::_13
-            | Self::_14
-            | Self::_15
-            | Self::_16
-            | Self::_17
-            | Self::_18
-            | Self::_19
-            | Self::_20
-            | Self::_21 => format!("#{}", self.symbol()).color(self.color()),
-        }
-    }
-    fn full_repr(&self) -> ColoredString {
-        let trump = match self {
             Self::Fool => indoc! {r"
             🃏🃏🃏🃏🃏🃏🃏🃏
             🃏  _________ 🃏
@@ -367,7 +318,6 @@ impl Representation for Trump {
             # |_____|_____|#
             #              #
             ################"},
-        };
-        trump.color(self.color())
+        }
     }
 }

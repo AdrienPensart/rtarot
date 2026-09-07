@@ -173,9 +173,6 @@ impl Mode {
 
 #[test]
 fn mode_tests() {
-    let mode = Mode::default();
-    println!("mode: {mode}");
-
     let three = Mode::from_str("3");
     assert_eq!(three, Ok(Mode::Three));
 

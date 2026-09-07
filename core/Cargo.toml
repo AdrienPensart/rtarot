@@ -1,0 +1,21 @@
+[package]
+name = "rtarot-core"
+description = "Tarot rules engine, free of any user interface"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+derive_more.workspace = true
+derive-new.workspace = true
+itertools.workspace = true
+strum.workspace = true
+indoc.workspace = true
+ordered-float.workspace = true
+# no `sys_rng`/`thread_rng`: the engine is always seeded by its caller,
+# which keeps `getrandom` out of the tree and the crate usable on wasm32.
+rand = { version = "0.10", default-features = false, features = ["std", "std_rng"] }
+
+[lints]
+workspace = true

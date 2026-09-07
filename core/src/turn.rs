@@ -1,9 +1,8 @@
 use crate::card::Card;
 use crate::deck::Deck;
-use crate::traits::Representation;
 use std::fmt;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Turn {
     pub master_index: Option<usize>,
     cards: Deck,
@@ -43,6 +42,10 @@ impl Turn {
         self.cards.iter().find(|card| !card.is_fool())
     }
     #[must_use]
+    pub const fn cards(&self) -> &Deck {
+        &self.cards
+    }
+    #[must_use]
     pub fn master_card(&self) -> Option<&Card> {
         self.master_index.map(|index| self.cards.get(index))?
     }
@@ -50,14 +53,7 @@ impl Turn {
 
 impl fmt::Display for Turn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Turn cards: \n{}", self.cards.full_repr())?;
-        if let Some(called) = self.called() {
-            write!(f, "\nCalled color: {}", called.colored_symbol())?;
-        }
-        if let Some(master) = self.master_card() {
-            write!(f, "\nMaster card: {master}")?;
-        }
-        Ok(())
+        write!(f, "{}", self.cards)
     }
 }
 

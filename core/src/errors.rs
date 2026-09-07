@@ -1,3 +1,4 @@
+use crate::card::Card;
 use crate::deck::Deck;
 use thiserror::Error;
 
@@ -5,8 +6,18 @@ use thiserror::Error;
 pub enum TarotErrorKind {
     #[error("A deck contains only one trump: the petit.")]
     PetitSec,
-    #[error("Card is invalid")]
-    InvalidCard,
+    #[error("Card {0} is not available")]
+    InvalidCard(Card),
+    #[error("Contract {0} is not available")]
+    InvalidContract(String),
+    #[error("Handle {0} is not available")]
+    InvalidHandle(String),
+    #[error("An answer was given while the engine asked nothing")]
+    UnexpectedAnswer,
+    #[error("Answer does not match the pending question")]
+    MismatchedAnswer,
+    #[error("There is no deal in progress")]
+    NoDeal,
     #[error("Invalid number of players : {0}")]
     InvalidPlayers(String),
     #[error("Invalid mode")]
@@ -23,9 +34,6 @@ pub enum TarotErrorKind {
     InvalidOudlersCount(Deck),
     #[error("Invalid color")]
     InvalidColor,
-    #[error("Random number distribution error")]
-    WeightedError(#[from] rand_distr::weighted::Error),
-
     #[error("No handle at index {0}")]
     NoHandle(usize),
     #[error("No slam at index {0}")]

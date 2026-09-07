@@ -1,6 +1,5 @@
 use crate::points::Points;
-use crate::traits::{Discardable, Representation};
-use colored::{ColoredString, Colorize};
+use crate::traits::{Color, Discardable, Representation};
 use indoc::indoc;
 use ordered_float::OrderedFloat;
 use std::fmt;
@@ -26,7 +25,7 @@ pub enum SuitValue {
 
 impl fmt::Display for SuitValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.colored_symbol())
+        write!(f, "{}", self.symbol())
     }
 }
 
@@ -64,8 +63,8 @@ impl Points for SuitValue {
 }
 
 impl Representation for SuitValue {
-    fn color(&self) -> &'static str {
-        "normal"
+    fn color(&self) -> Color {
+        Color::Plain
     }
     fn symbol(&self) -> &'static str {
         match self {
@@ -85,14 +84,8 @@ impl Representation for SuitValue {
             Self::_10 => "10",
         }
     }
-    fn colored_symbol(&self) -> ColoredString {
-        self.symbol().color(self.color())
-    }
-    fn repr(&self) -> ColoredString {
-        self.symbol().normal()
-    }
-    fn full_repr(&self) -> ColoredString {
-        let base = match self {
+    fn art(&self) -> &'static str {
+        match self {
             Self::_1 => indoc! {r"
             ****************
             *     __       *
@@ -233,7 +226,6 @@ impl Representation for SuitValue {
             * |____||____| *
             *              *
             ****************"},
-        };
-        base.normal()
+        }
     }
 }

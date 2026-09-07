@@ -1,10 +1,8 @@
 use crate::points::Points;
 use crate::suit::Suit;
 use crate::suit_value::SuitValue;
-use crate::traits::{Discardable, Power, Representation};
-use colored::{ColoredString, Colorize};
+use crate::traits::{Color, Discardable, Power, Representation};
 use derive_new::new;
-use lazy_regex::regex;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
@@ -16,7 +14,7 @@ pub struct Normal {
 
 impl fmt::Display for Normal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.value(), self.colored_symbol())
+        write!(f, "{}{}", self.value, self.suit)
     }
 }
 
@@ -60,20 +58,11 @@ impl Representation for Normal {
     fn symbol(&self) -> &'static str {
         self.suit.symbol()
     }
-    fn colored_symbol(&self) -> ColoredString {
-        self.symbol().color(self.color())
-    }
-    fn color(&self) -> &'static str {
+    fn color(&self) -> Color {
         self.suit.color()
     }
-    fn repr(&self) -> ColoredString {
-        self.colored_symbol()
-    }
-    #[allow(clippy::trivial_regex)]
-    fn full_repr(&self) -> ColoredString {
-        let repr_regex = regex!(r"[\*]");
-        repr_regex
-            .replace_all(&self.value.full_repr(), format!("{}", self.suit))
-            .color(self.color())
+    /// The art of the value, in which `*` stands for the suit symbol.
+    fn art(&self) -> &'static str {
+        self.value.art()
     }
 }

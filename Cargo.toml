@@ -1,38 +1,32 @@
-[package]
-name = "rtarot"
-description = "Tarot simulation"
-default-run = "rtarot"
-version = "0.1.0"
-authors = ["Adrien Pensart <crunchengine@gmail.com>"]
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["core", "cli"]
 
-[dependencies]
-log = "0.4"
-clap = { version = "4.5.21", features = ["derive"] }
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Adrien Pensart <crunchengine@gmail.com>"]
+
+[workspace.dependencies]
+rtarot-core = { path = "core" }
 thiserror = "2.0"
-rand = "0.10"
-rand_distr = "0.6"
 derive_more = { version = "2.0", features = ["full"] }
 derive-new = "0.7.0"
 itertools = "0.15"
 strum = { version = "0.28", features = ["derive"] }
 indoc = "2.0"
-regex = "1.11.1"
-colored = "3.0.0"
-array-init = "2.0.1"
 ordered-float = "5.0.0"
-lazy-regex = "3.1.0"
 
-[lints.rust]
+[workspace.lints.rust]
 unsafe_code = "forbid"
 
-[lints.clippy]
+[workspace.lints.clippy]
 enum_glob_use = "deny"
 pedantic = { level = "deny", priority = -1 }
 nursery = { level = "deny", priority = -1 }
 unwrap_used = "deny"
-must_use_candidate = "allow"
 missing_errors_doc = "allow"
+must_use_candidate = "allow"
 indexing_slicing = "deny"
 fallible_impl_from = "deny"
 wildcard_enum_match_arm = "deny"
