@@ -2,7 +2,7 @@ use derive_new::new;
 use ordered_float::OrderedFloat;
 use std::fmt;
 
-use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS};
+use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS, MAX_POINTS};
 use crate::contract::Contract;
 use crate::errors::TarotErrorKind;
 use crate::game_distributed::GameDistributed;
@@ -18,7 +18,6 @@ use crate::turn::Turn;
 #[derive(new)]
 pub struct GameStarted<'a, const MODE: usize> {
     game_distributed: &'a mut GameDistributed<'a, MODE>,
-    taker_index: usize,
     contract: Contract,
     options: Options,
 
@@ -86,7 +85,13 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
     pub fn play(&mut self) -> Result<(), TarotErrorKind> {
         let mut turn = Turn::default();
         let mut master_player_index: usize = 0;
+        let mut fool_kept_by_owner = false;
         let quiet = self.options.quiet;
+
+        // A side is still on track for a slam as long as the other side took no card at all.
+        let attack_took_everything = self.defense_cards == 0;
+        let defense_took_everything = self.attack_cards == 0;
+
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
                 self.player_and_his_game_mut(current_player_index)?;
@@ -103,28 +108,20 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
 
             let card = current_player_in_game.play_card(current_player, &turn)?;
             if card.is_fool() {
-                if current_player_in_game.last_turn() {
-                    // RULE: exception in the last turn, the fool is in game and can be lost
-                    turn.put(card);
-                    match team {
-                        Team::Attack => {
-                            if self.attack_cards == MAX_CARDS - self.mode().dog_size() {
-                                turn.master_index = Some(turn.len() - 1);
-                                master_player_index = current_player_index;
-                            }
-                        }
-                        Team::Defense => {
-                            if self.defense_cards == MAX_CARDS - self.mode().dog_size() {
-                                turn.master_index = Some(turn.len() - 1);
-                                master_player_index = current_player_index;
-                            }
-                        }
-                    }
-                } else {
-                    // RULE: the fool is always preserved to his owner
+                // RULE: the fool is preserved to his owner, except when played in the last turn,
+                // where it is lost to the winner of that turn unless its side took every turn.
+                let keep = !current_player_in_game.last_turn()
+                    || match team {
+                        Team::Attack => attack_took_everything,
+                        Team::Defense => defense_took_everything,
+                    };
+                if keep {
+                    fool_kept_by_owner = true;
                     current_player_in_game.push_owned(card);
-                    turn.put(card);
+                } else if !quiet {
+                    println!("Fool played in the last turn, it is lost");
                 }
+                turn.put(card);
             } else {
                 turn.put(card);
                 if let Some(master) = turn.master_card() {
@@ -163,22 +160,22 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             }
         }
 
-        let mode = *self.mode();
-        let attack_near_slam = self.attack_cards == MAX_CARDS - mode.dog_size() - mode.players();
-        if attack_near_slam && !quiet {
-            println!("Attack is near slam!");
-        }
-        let defense_near_slam = self.defense_cards == MAX_CARDS - mode.dog_size() - mode.players();
-        if defense_near_slam && !quiet {
-            println!("Defense is near slam!");
+        if !quiet {
+            if attack_took_everything {
+                println!("Attack is near slam!");
+            }
+            if defense_took_everything {
+                println!("Defense is near slam!");
+            }
         }
 
         let (players, players_in_game) = self.players_and_their_game_mut();
         let Some(master) = players.get(master_player_index) else {
             return Err(TarotErrorKind::NoMaster(master_player_index));
         };
+        let master_name = master.name().to_string();
         if !quiet {
-            println!("Player {} has win turn", master.name());
+            println!("Player {master_name} has win turn");
         }
 
         let Some(master_player_in_game) = players_in_game.get_mut(master_player_index) else {
@@ -195,54 +192,72 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
         }
 
         let Some(master_player_team) = master_player_in_game.team() else {
-            return Err(TarotErrorKind::NoTeamForPlayer(master.name().to_string()));
+            return Err(TarotErrorKind::NoTeamForPlayer(master_name));
         };
+        let master_player_team = *master_player_team;
 
-        let turn_cards = turn.take_cards_except_fool();
-        let petit_au_bout_for_team = if turn_cards.has_petit()
-            && (last_turn || (before_last_turn && (attack_near_slam || defense_near_slam)))
-        {
+        let turn_cards = turn.take_cards(fool_kept_by_owner);
+        let petit_au_bout = turn_cards.has_petit()
+            && (last_turn
+                || (before_last_turn && (attack_took_everything || defense_took_everything)));
+        let won_cards = turn_cards.len();
+        master_player_in_game.extend_owned(&turn_cards);
+
+        if petit_au_bout {
             if !quiet {
                 println!(
-                    "{} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points",
-                    master.name()
+                    "{master_name} (team: {master_player_team}) has Petit in last turn (Petit au bout) : +10 points"
                 );
             }
-            // wait_input();
-            Some(*master_player_team)
-        } else {
-            None
-        };
-
-        let mut attack_cards = 0;
-        let mut defense_cards = 0;
-        match master_player_team {
-            Team::Attack => attack_cards = turn_cards.len(),
-            Team::Defense => defense_cards = turn_cards.len(),
+            self.petit_au_bout_for_team = Some(master_player_team);
         }
-        master_player_in_game.extend_owned(&turn_cards);
         self.game_distributed.rotate_at(master_player_index);
-        self.petit_au_bout_for_team = petit_au_bout_for_team;
-        self.attack_cards += attack_cards;
-        self.defense_cards += defense_cards;
+        match master_player_team {
+            Team::Attack => self.attack_cards += won_cards,
+            Team::Defense => self.defense_cards += won_cards,
+        }
         Ok(())
     }
 
-    #[allow(clippy::manual_assert)]
+    /// Every card of the game must still be somewhere, and be worth the same total.
+    fn check_deal_integrity(&self) -> Result<(), TarotErrorKind> {
+        let mut total_cards = 0;
+        let mut total_points = OrderedFloat(0.0);
+        for index in 0..MODE {
+            let (_, player_in_game) = self.player_and_his_game(index)?;
+            let cards = player_in_game.all_cards();
+            total_cards += cards.len();
+            total_points += cards.points();
+        }
+        if total_cards != MAX_CARDS {
+            return Err(TarotErrorKind::InvalidCase(format!(
+                "{total_cards} cards in play instead of {MAX_CARDS}"
+            )));
+        }
+        if total_points != MAX_POINTS {
+            return Err(TarotErrorKind::InvalidCase(format!(
+                "{total_points} points in play instead of {MAX_POINTS}"
+            )));
+        }
+        Ok(())
+    }
+
     pub fn count_points(&mut self) -> Result<(), TarotErrorKind> {
+        let quiet = self.options.quiet;
+        let mut taker_index: Option<usize> = None;
         let mut ally_index: Option<usize> = None;
-        #[allow(clippy::collection_is_never_read)]
-        let mut attack: Vec<usize> = Vec::new();
         let mut defense: Vec<usize> = Vec::new();
+        let mut announced_handles = OrderedFloat(0.0);
         let mut owning_card_player_index: Option<usize> = None;
         let mut missing_card_player_index: Option<usize> = None;
-        let mut handle_bonuses = OrderedFloat(0.0);
-        let quiet = self.options.quiet;
+
+        // Seats are rotated after every turn, so roles are the only reliable way
+        // to find out who the taker is at this point.
         for current_player_index in 0..MODE {
             let (current_player, current_player_in_game) =
-                self.player_and_his_game_mut(current_player_index)?;
+                self.player_and_his_game(current_player_index)?;
 
-            let Some(role) = current_player_in_game.role() else {
+            let Some(role) = *current_player_in_game.role() else {
                 return Err(TarotErrorKind::NoRoleForPlayer(
                     current_player.name().to_string(),
                 ));
@@ -254,118 +269,89 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             if current_player_in_game.missing_card() {
                 missing_card_player_index = Some(current_player_index);
             }
-            if let Some(handle) = &current_player_in_game.handle() {
+            if let Some(handle) = *current_player_in_game.handle() {
                 let handle_bonus = handle.points();
-                handle_bonuses += handle_bonus;
+                announced_handles += handle_bonus;
                 if !quiet {
-                    println!("Handle bonus for role {role} : {handle_bonus}");
+                    println!("Handle announced by role {role} : {handle_bonus}");
                 }
             }
             match role {
-                Role::Taker => {
-                    attack.push(current_player_index);
-                }
-                Role::Ally => {
-                    ally_index = Some(current_player_index);
-                    attack.push(current_player_index);
-                }
-                Role::Defenser => {
-                    defense.push(current_player_index);
-                }
+                Role::Taker => taker_index = Some(current_player_index),
+                Role::Ally => ally_index = Some(current_player_index),
+                Role::Defenser => defense.push(current_player_index),
             }
         }
+        let Some(taker_index) = taker_index else {
+            return Err(TarotErrorKind::NoTaker(0));
+        };
 
-        // give a low card if someone owe a card to someone else
-        if let (Some(owning_card_player_index), Some(missing_card_player_index)) =
+        // RULE: the owner of a kept fool gives a low card in exchange,
+        // and loses the fool itself when he has no card to give.
+        if let (Some(owning_index), Some(missing_index)) =
             (owning_card_player_index, missing_card_player_index)
         {
             let (players, players_in_game) = self.players_and_their_game_mut();
-            let Some(owning_card_player) = players.get(owning_card_player_index) else {
-                return Err(TarotErrorKind::NoPlayer(owning_card_player_index));
+            let (Some(owning_player), Some(missing_player)) =
+                (players.get(owning_index), players.get(missing_index))
+            else {
+                return Err(TarotErrorKind::NoPlayer(owning_index));
             };
-
-            if let Some(low_card) = players_in_game
-                .get_mut(owning_card_player_index)
-                .and_then(PlayerInGame::give_low)
-            {
-                let Some(missing_card_player) = players.get(missing_card_player_index) else {
-                    return Err(TarotErrorKind::NoPlayer(missing_card_player_index));
-                };
-                let Some(missing_card_player_in_game) =
-                    players_in_game.get_mut(missing_card_player_index)
-                else {
-                    return Err(TarotErrorKind::NoPlayer(missing_card_player_index));
-                };
-
-                missing_card_player_in_game.push_owned(low_card);
+            let Some(owning_player_in_game) = players_in_game.get_mut(owning_index) else {
+                return Err(TarotErrorKind::NoPlayer(owning_index));
+            };
+            let compensation = owning_player_in_game
+                .give_low()
+                .or_else(|| owning_player_in_game.give_fool());
+            if let Some(card) = compensation {
                 if !quiet {
                     println!(
-                        "Player {} own a card to {}, giving a {low_card} in exchange",
-                        owning_card_player.name(),
-                        missing_card_player.name()
+                        "Player {} owes a card to {}, giving a {card} in exchange",
+                        owning_player.name(),
+                        missing_player.name()
                     );
                 }
-            } else {
-                println!(
-                    "Player {} cannot give a low card",
-                    owning_card_player.name()
-                );
+                let Some(missing_player_in_game) = players_in_game.get_mut(missing_index) else {
+                    return Err(TarotErrorKind::NoPlayer(missing_index));
+                };
+                missing_player_in_game.push_owned(card);
             }
         }
 
-        let taker_index = self.taker_index;
-        if let Some(ally_index) = ally_index {
-            let (players, players_in_game) = self.players_and_their_game_mut();
-            let Some(ally) = players.get(ally_index) else {
-                return Err(TarotErrorKind::NoAlly(ally_index));
-            };
+        self.check_deal_integrity()?;
 
-            let Some(ally_in_game) = players_in_game.get_mut(ally_index) else {
-                return Err(TarotErrorKind::NoAlly(ally_index));
-            };
-
-            let ally_cards = ally_in_game.all_cards();
-
-            let Some(taker) = players.get(taker_index) else {
+        // RULE: the ally puts his cards with the taker's ones
+        let (attack_cards, taker_announced_slam) = {
+            let (_, players_in_game) = self.players_and_their_game_mut();
+            let Some(taker_in_game) = players_in_game.get(taker_index) else {
                 return Err(TarotErrorKind::NoTaker(taker_index));
             };
-
-            if !quiet {
-                println!("{} gives his card to {}", ally.name(), taker.name());
+            let mut attack_cards = taker_in_game.all_cards();
+            let taker_announced_slam = taker_in_game.announced_slam();
+            if let Some(ally_index) = ally_index {
+                let Some(ally_in_game) = players_in_game.get(ally_index) else {
+                    return Err(TarotErrorKind::NoAlly(ally_index));
+                };
+                attack_cards.extend(&ally_in_game.all_cards());
             }
+            (attack_cards, taker_announced_slam)
+        };
 
-            let Some(taker_in_game) = players_in_game.get_mut(taker_index) else {
-                return Err(TarotErrorKind::NoTaker(taker_index));
-            };
-            taker_in_game.extend_owned(&ally_cards);
-        }
-
-        let (taker, taker_in_game) = self.player_and_his_game_mut(self.taker_index)?;
-        let slam_bonus = taker_in_game.slam_bonus();
-        let taker_points = taker_in_game.points();
-        let points_for_oudlers = taker_in_game.points_for_oudlers()?;
+        let attack_points = attack_cards.points();
+        let points_for_oudlers = attack_cards.points_for_oudlers()?;
+        let contract_succeeded = attack_points >= points_for_oudlers;
 
         if !quiet {
-            println!("Taker {taker} slam bonus: {slam_bonus}");
-            println!("Taker {taker} owned points: {taker_points}");
+            println!("Attack owned points: {attack_points}");
             println!("Contract todo: {points_for_oudlers}");
             println!("Contract base: {BASE_CONTRACT_POINTS}");
-            let difference = taker_points - points_for_oudlers;
-            println!("Contract difference: {difference}");
+            println!("Contract difference: {}", attack_points - points_for_oudlers);
         }
 
-        let contract_points = if taker_points >= points_for_oudlers {
-            if !quiet {
-                let total = taker_points - points_for_oudlers + BASE_CONTRACT_POINTS;
-                println!("Contract total: {total}");
-            }
-            (taker_points - points_for_oudlers + BASE_CONTRACT_POINTS) * self.contract.multiplier()
+        let contract_points = if contract_succeeded {
+            (attack_points - points_for_oudlers + BASE_CONTRACT_POINTS) * self.contract.multiplier()
         } else {
-            if !quiet {
-                let total = taker_points - points_for_oudlers - BASE_CONTRACT_POINTS;
-                println!("Contract total: {total}");
-            }
-            (taker_points - points_for_oudlers - BASE_CONTRACT_POINTS) * self.contract.multiplier()
+            (attack_points - points_for_oudlers - BASE_CONTRACT_POINTS) * self.contract.multiplier()
         };
         if !quiet {
             println!(
@@ -374,6 +360,37 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
                 self.contract.multiplier()
             );
             println!("Taker contract points: {contract_points}");
+        }
+
+        // RULE: a slam is realized when a side took every single turn
+        let attack_slam = self.attack_cards > 0 && self.defense_cards == 0;
+        let defense_slam = self.defense_cards > 0 && self.attack_cards == 0;
+        let mut slam_bonus = OrderedFloat(0.0);
+        if attack_slam {
+            slam_bonus += if taker_announced_slam {
+                if !quiet {
+                    println!("Chelem announced and realized !");
+                }
+                OrderedFloat(400.0)
+            } else {
+                if !quiet {
+                    println!("Chelem not announced but realized !");
+                }
+                OrderedFloat(200.0)
+            };
+        } else {
+            if taker_announced_slam {
+                if !quiet {
+                    println!("Chelem announced but not realized !");
+                }
+                slam_bonus -= OrderedFloat(200.0);
+            }
+            if defense_slam {
+                if !quiet {
+                    println!("Chelem realized by the defense !");
+                }
+                slam_bonus -= OrderedFloat(200.0);
+            }
         }
 
         let points_petit_au_bout = OrderedFloat(10.0) * self.contract.multiplier();
@@ -398,56 +415,46 @@ impl<const MODE: usize> GameStarted<'_, MODE> {
             }
         };
 
-        let ratio = self.mode().ratio(ally_index.is_some());
-        let points = contract_points + petit_au_bout_bonus + handle_bonuses + slam_bonus;
-
-        let Ok(taker) = self.player_mut(self.taker_index) else {
-            return Err(TarotErrorKind::NoTaker(self.taker_index));
-        };
-        if contract_points >= OrderedFloat(0.0) {
-            taker.add_score(ratio * points);
+        // RULE: handles are always paid to the winner of the deal, whoever announced them
+        let handle_bonus = if contract_succeeded {
+            announced_handles
         } else {
-            taker.add_score(-ratio * points);
+            -announced_handles
+        };
+
+        let ratio = self.mode().ratio(ally_index.is_some());
+        let points = contract_points + petit_au_bout_bonus + handle_bonus + slam_bonus;
+        if !quiet {
+            println!("Total handle bonuses: {handle_bonus}");
+            println!("Slam bonus: {slam_bonus}");
+            println!("Attack points: {points}");
         }
 
+        let Ok(taker) = self.player_mut(taker_index) else {
+            return Err(TarotErrorKind::NoTaker(taker_index));
+        };
+        taker.add_score(ratio * points);
         if !quiet {
-            println!("Total handle bonuses: {handle_bonuses}");
-            println!("Taker points: {points}");
-            let taker = self
-                .game_distributed
-                .game()
-                .player(self.taker_index)
-                .map_err(|_| TarotErrorKind::NoTaker(self.taker_index))?;
-            println!("Taker total points: {}", taker.score());
+            println!("Taker {} total points: {}", taker.name(), taker.score());
         }
 
         if let Some(ally_index) = ally_index {
             let Ok(ally) = self.player_mut(ally_index) else {
                 return Err(TarotErrorKind::NoAlly(ally_index));
             };
-            if contract_points >= OrderedFloat(0.0) {
-                ally.add_score(points);
-            } else {
-                ally.add_score(-points);
-            }
+            ally.add_score(points);
             if !quiet {
-                println!("Ally total points: {}", ally.score());
+                println!("Ally {} total points: {}", ally.name(), ally.score());
             }
         }
 
         for defenser_index in defense {
-            let defenser = self
-                .game_distributed
-                .game()
-                .player_mut(defenser_index)
-                .map_err(|_| TarotErrorKind::NoDefenser(defenser_index))?;
-            if contract_points >= OrderedFloat(0.0) {
-                defenser.add_score(-points);
-            } else {
-                defenser.add_score(points);
-            }
+            let Ok(defenser) = self.player_mut(defenser_index) else {
+                return Err(TarotErrorKind::NoDefenser(defenser_index));
+            };
+            defenser.add_score(-points);
             if !quiet {
-                println!("Defenser : {}", defenser.name());
+                println!("Defenser {} total points: {}", defenser.name(), defenser.score());
             }
         }
         self.is_consistent()
@@ -481,7 +488,7 @@ mod tests {
     fn three_player_single_deal_consistent() {
         let options = default_test_options();
         let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
-        assert_eq!(game.start(1), Ok(()));
+        assert_eq!(game.start(60), Ok(()));
     }
 
     #[test]
@@ -494,7 +501,7 @@ mod tests {
     #[test]
     fn three_player_no_slam() {
         let options = Options {
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
@@ -519,7 +526,7 @@ mod tests {
     fn four_player_single_deal_consistent() {
         let options = default_test_options();
         let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
-        assert_eq!(game.start(1), Ok(()));
+        assert_eq!(game.start(60), Ok(()));
     }
 
     #[test]
@@ -532,7 +539,7 @@ mod tests {
     #[test]
     fn four_player_no_slam() {
         let options = Options {
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
@@ -557,7 +564,7 @@ mod tests {
     fn five_player_single_deal_consistent() {
         let options = default_test_options();
         let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
-        assert_eq!(game.start(1), Ok(()));
+        assert_eq!(game.start(60), Ok(()));
     }
 
     #[test]
@@ -570,7 +577,7 @@ mod tests {
     #[test]
     fn five_player_no_slam() {
         let options = Options {
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
@@ -610,7 +617,7 @@ mod tests {
     #[test]
     fn all_modes_no_slam() {
         let options = Options {
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         for mode in Mode::iter() {
@@ -675,7 +682,7 @@ mod tests {
     fn three_player_attack_no_slam() {
         let options = Options {
             attack: true,
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Three.players() }>::new(options).unwrap();
@@ -686,7 +693,7 @@ mod tests {
     fn four_player_attack_no_slam() {
         let options = Options {
             attack: true,
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Four.players() }>::new(options).unwrap();
@@ -697,7 +704,7 @@ mod tests {
     fn five_player_attack_no_slam() {
         let options = Options {
             attack: true,
-            no_slam: true,
+            no_slam: false,
             ..default_test_options()
         };
         let game = Game::<{ Mode::Five.players() }>::new(options).unwrap();
@@ -721,3 +728,5 @@ mod tests {
         assert_eq!(launch(Mode::Five, default_test_options(), 20), Ok(()));
     }
 }
+
+

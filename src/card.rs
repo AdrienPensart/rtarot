@@ -58,8 +58,8 @@ impl Discardable for Card {
 
 impl Card {
     #[must_use]
-    pub fn normal(suit: Suit, value: SuitValue) -> Self {
-        Self::Normal(Normal::new(suit, value))
+    pub const fn normal(suit: Suit, value: SuitValue) -> Self {
+        Self::Normal(Normal::new_const(suit, value))
     }
     #[must_use]
     pub const fn is_fool(self) -> bool {

@@ -66,7 +66,8 @@ impl fmt::Display for PlayerInGame {
 
 impl Points for PlayerInGame {
     fn points(&self) -> OrderedFloat<f64> {
-        self.owned.points()
+        // RULE: the dog kept by a side counts in its points
+        self.all_cards().points()
     }
 }
 
@@ -94,6 +95,10 @@ impl PlayerInGame {
     }
     pub fn set_discard(&mut self, discard: &Deck) {
         self.discard = discard.clone();
+    }
+    #[must_use]
+    pub const fn hand(&self) -> &Deck {
+        &self.hand
     }
     #[must_use]
     pub fn all_cards(&self) -> Deck {
@@ -131,9 +136,6 @@ impl PlayerInGame {
     pub const fn handle(&self) -> &Option<Handle> {
         &self.handle
     }
-    pub fn points_for_oudlers(&self) -> Result<OrderedFloat<f64>, TarotErrorKind> {
-        self.owned.points_for_oudlers()
-    }
     pub fn play_card(&mut self, player: &Player, turn: &Turn) -> Result<Card, TarotErrorKind> {
         let Some(_) = self.role else {
             return Err(TarotErrorKind::NoRoleForPlayer(player.name().to_string()));
@@ -143,10 +145,14 @@ impl PlayerInGame {
             return Err(TarotErrorKind::NoTeamForPlayer(player.name().to_string()));
         };
 
-        if (!self.owned.has_fool() && !self.owned.len().is_multiple_of(self.mode.players()))
-            || (self.owned.has_fool() && (self.owned.len() % self.mode.players() != 1))
-        {
-            eprintln!("{}", self.owned.len() % self.mode.players());
+        // A player owns a whole number of turns, plus the fool if he kept it,
+        // minus one card if he won the turn in which the fool was kept by its owner.
+        let players = self.mode.players();
+        let remainder = self.owned.len() % players;
+        let consistent = remainder == 0
+            || (remainder == 1 && self.owned.has_fool())
+            || (remainder == players - 1 && !self.owned.has_fool());
+        if !consistent {
             return Err(TarotErrorKind::InvalidDeck(self.owned.clone()));
         }
 
@@ -205,9 +211,7 @@ impl PlayerInGame {
         contracts: &[Contract],
     ) -> Result<Option<Contract>, TarotErrorKind> {
         let player_name = player.name();
-        let contract = if self.options.auto && contracts.len() == 1 {
-            return Ok(None);
-        } else if self.options.random {
+        let contract = if self.options.random {
             if self.options.attack {
                 return Ok(None);
             }
@@ -222,7 +226,7 @@ impl PlayerInGame {
         } else {
             loop {
                 if !self.options.quiet {
-                    println!("{player_name} with hand : {}", &self.hand);
+                    println!("{player_name} with hand : {}", self.hand);
                     println!("{player_name} must choose a contract, possibilities :");
                     println!("\tPass : press 0");
                     for (contract_index, contract) in contracts.iter().enumerate() {
@@ -252,26 +256,8 @@ impl PlayerInGame {
         Ok(Some(*contract))
     }
     #[must_use]
-    pub fn slam_bonus(&self) -> f64 {
-        if self.slam {
-            if self.owned.is_chelem() {
-                if !self.options.quiet {
-                    println!("{self} : chelem announced and realized !");
-                }
-                400.0
-            } else {
-                -200.0
-            }
-        } else if self.owned.is_chelem() {
-            if !self.options.quiet {
-                println!("{self} : chelem not announced but realized !");
-            }
-            200.0
-        } else if self.owned.is_empty() || self.owned.only_fool() {
-            -200.0
-        } else {
-            0.0
-        }
+    pub const fn announced_slam(&self) -> bool {
+        self.slam
     }
     pub fn announce_slam(&mut self) -> Result<bool, TarotErrorKind> {
         if self.options.no_slam {
@@ -289,7 +275,7 @@ impl PlayerInGame {
         } else {
             loop {
                 if !self.options.quiet {
-                    println!("Hand of {} : {}", &self, &self.hand);
+                    println!("Hand of {self} : {}", self.hand);
                     println!("Slam ? : ");
                     for (i, s) in slams.iter().enumerate() {
                         println!("{s} : press {i}");
@@ -308,127 +294,114 @@ impl PlayerInGame {
         Ok(self.slam)
     }
     pub fn announce_handle(&mut self) -> Result<(), TarotErrorKind> {
-        let mut trumps = self.hand.trumps();
-        let discarded_trumps = self.owned.trumps();
-        let mut total_trumps = trumps.len() + discarded_trumps.len();
-        let handle = self.mode.handle(total_trumps);
-        self.handle = match handle {
-            None => None,
-            Some(mut handle) => {
-                let handles = match handle {
-                    Handle::Simple => vec![Handle::Refused, Handle::Simple],
-                    Handle::Double => vec![Handle::Refused, Handle::Simple, Handle::Double],
-                    Handle::Triple => vec![
-                        Handle::Refused,
-                        Handle::Simple,
-                        Handle::Double,
-                        Handle::Triple,
-                    ],
-                    Handle::Refused => vec![],
-                };
-                handle = if self.options.random {
-                    let random_slam_index = rand::rng().random_range(0..handles.len());
-                    *handles
-                        .get(random_slam_index)
-                        .ok_or(TarotErrorKind::NoHandle(random_slam_index))?
-                } else {
-                    loop {
-                        if !self.options.quiet {
-                            for a in &trumps {
-                                println!("\t{a}");
-                            }
-                            println!(
-                                "You have {} trumps, you can declare a handle : ",
-                                trumps.len()
-                            );
-                            for (handle_index, handle) in handles.iter().enumerate() {
-                                println!(
-                                    "{handle} handle (needs: {} trumps, points: {}) : press {handle_index}",
-                                    self.mode.handle_limit(handle),
-                                    handle.points(),
-                                );
-                            }
-                        }
-                        let handle_index = read_index();
-                        if handle_index < handles.len() {
-                            break *handles
-                                .get(handle_index)
-                                .ok_or(TarotErrorKind::NoHandle(handle_index))?;
-                        } else if !self.options.quiet {
-                            println!("Error, please retry");
-                        }
+        // RULE: only the trumps still in hand count, the ones put in the dog do not
+        let mut trumps: Vec<Card> = self.hand.trumps().into_iter().copied().collect();
+        let fool_in_hand = trumps.iter().any(|card| card.is_fool());
+        let real_trumps = trumps.len() - usize::from(fool_in_hand);
+        let Some(max_handle) = self.mode.handle(trumps.len()) else {
+            self.handle = None;
+            return Ok(());
+        };
+        let handles = match max_handle {
+            Handle::Refused => vec![Handle::Refused],
+            Handle::Simple => vec![Handle::Refused, Handle::Simple],
+            Handle::Double => vec![Handle::Refused, Handle::Simple, Handle::Double],
+            Handle::Triple => vec![
+                Handle::Refused,
+                Handle::Simple,
+                Handle::Double,
+                Handle::Triple,
+            ],
+        };
+        let handle = if self.options.random {
+            let random_handle_index = rand::rng().random_range(0..handles.len());
+            *handles
+                .get(random_handle_index)
+                .ok_or(TarotErrorKind::NoHandle(random_handle_index))?
+        } else {
+            loop {
+                if !self.options.quiet {
+                    for a in &trumps {
+                        println!("\t{a}");
                     }
-                };
-                if handle != Handle::Refused {
-                    trumps.retain(|&c| !c.is_fool());
-                    // RULE: cant use fool as trump when you have too much trumps for the handle
-                    if total_trumps != trumps.len() + discarded_trumps.len() && !self.options.quiet
-                    {
-                        println!("You can't use fool as trumps in a handle");
-                    }
-                    trumps.extend(discarded_trumps.iter());
-                    total_trumps = trumps.len();
-
-                    let limit = self.mode.handle_limit(&handle);
-                    if total_trumps > limit {
-                        let mut to_discard = total_trumps - limit;
-                        while to_discard > 0 {
-                            loop {
-                                if !self.options.quiet {
-                                    for (i, a) in trumps.iter().enumerate() {
-                                        println!("\t{i} : {a}");
-                                    }
-                                    println!(
-                                        "You must discards {to_discard} trumps to present only {limit}"
-                                    );
-                                }
-                                if self.options.random {
-                                    let index_to_remove = rand::rng().random_range(0..trumps.len());
-                                    trumps.remove(index_to_remove);
-                                    break;
-                                }
-                                let trump_index = read_index();
-                                if trump_index < trumps.len() {
-                                    trumps.remove(trump_index);
-                                } else if !self.options.quiet {
-                                    println!("Error, please retry");
-                                }
-                            }
-                            to_discard -= 1;
-                        }
-                    } else if !self.options.quiet {
-                        println!("You have exactly the good number of trumps");
-                    }
-                    if !self.options.quiet {
-                        println!("Final handle : ");
-                        for a in &trumps {
-                            println!("\t{}", &a);
-                        }
+                    println!(
+                        "You have {} trumps, you can declare a handle : ",
+                        trumps.len()
+                    );
+                    for (handle_index, handle) in handles.iter().enumerate() {
+                        println!(
+                            "{handle} handle (needs: {} trumps, points: {}) : press {handle_index}",
+                            self.mode.handle_limit(handle),
+                            handle.points(),
+                        );
                     }
                 }
-                Some(handle)
+                let handle_index = read_index();
+                if handle_index < handles.len() {
+                    break *handles
+                        .get(handle_index)
+                        .ok_or(TarotErrorKind::NoHandle(handle_index))?;
+                } else if !self.options.quiet {
+                    println!("Error, please retry");
+                }
             }
         };
+        if handle == Handle::Refused {
+            self.handle = None;
+            return Ok(());
+        }
+
+        let limit = self.mode.handle_limit(&handle);
+        // RULE: the fool can only be shown in a handle when there are not enough real trumps
+        if real_trumps >= limit {
+            if fool_in_hand && !self.options.quiet {
+                println!("You can't use fool as trumps in a handle");
+            }
+            trumps.retain(|card| !card.is_fool());
+        }
+        while trumps.len() > limit {
+            let to_discard = trumps.len() - limit;
+            if self.options.random {
+                let index_to_remove = rand::rng().random_range(0..trumps.len());
+                trumps.remove(index_to_remove);
+                continue;
+            }
+            if !self.options.quiet {
+                for (i, a) in trumps.iter().enumerate() {
+                    println!("\t{i} : {a}");
+                }
+                println!("You must discards {to_discard} trumps to present only {limit}");
+            }
+            let trump_index = read_index();
+            if trump_index < trumps.len() {
+                trumps.remove(trump_index);
+            } else if !self.options.quiet {
+                println!("Error, please retry");
+            }
+        }
+        if !self.options.quiet {
+            println!("Final handle : ");
+            for a in &trumps {
+                println!("\t{a}");
+            }
+        }
+        self.handle = Some(handle);
         Ok(())
     }
     #[must_use]
     pub fn owe_card(&self) -> bool {
-        self.owned.has_fool()
-            && self.owned.len() > 1
-            && (self.owned.len() % self.mode.players()) == 1
+        self.owned.has_fool() && (self.owned.len() % self.mode.players()) == 1
     }
     #[must_use]
     pub fn missing_card(&self) -> bool {
         !self.owned.has_fool()
-            && self.owned.len() > 1
             && (self.owned.len() % self.mode.players()) == (self.mode.players() - 1)
     }
     pub fn give_low(&mut self) -> Option<Card> {
         self.owned.give_low()
     }
-    #[must_use]
-    pub fn count_oudlers(&self) -> usize {
-        self.owned.count_oudlers()
+    pub fn give_fool(&mut self) -> Option<Card> {
+        self.owned.give_fool()
     }
     #[must_use]
     pub const fn is_first_turn(&self) -> bool {
@@ -478,7 +451,7 @@ impl PlayerInGame {
         } else {
             loop {
                 if !self.options.quiet {
-                    println!("Hand of taker {}", &self.hand);
+                    println!("Hand of taker {}", self.hand);
                     println!("Taker must choose a card to call his partner :");
                     println!("Possibilities:");
                     for (i, c) in choices.iter().enumerate() {
@@ -509,7 +482,7 @@ impl PlayerInGame {
             if !self.options.quiet {
                 println!("You must discard {} cards", dog_size - current);
             }
-            let discardables_indexes = self.hand.discardables(dog_size);
+            let discardables_indexes = self.hand.discardables(dog_size - current);
             let discard_index = if self.options.random {
                 let random_discarded_index =
                     rand::rng().random_range(0..discardables_indexes.len());
@@ -545,14 +518,30 @@ impl PlayerInGame {
         }
 
         if !self.options.quiet {
-            for c in self.owned.trumps() {
-                println!("This trump was discarded: {}", &c);
+            for c in self.discard.trumps() {
+                println!("This trump was discarded: {c}");
             }
         }
         self.hand.sort();
         Ok(())
     }
     pub fn choices(&self, turn: &Turn) -> Result<Vec<usize>, TarotErrorKind> {
+        // RULE: the holder of the called card must play it as soon as its color is asked
+        if let Some(Card::Normal(callee_normal)) = self.callee
+            && let Some(Card::Normal(called_normal)) = turn.called()
+            && callee_normal.suit() == called_normal.suit()
+            && let Some(callee_index) = self
+                .hand
+                .iter()
+                .position(|card| card == &Card::Normal(callee_normal))
+        {
+            let mut forced = vec![callee_index];
+            if let Some(fool_index) = self.hand.iter().position(|card| card.is_fool()) {
+                forced.push(fool_index);
+            }
+            return Ok(forced);
+        }
+
         let mut and_fool: Option<usize> = None;
         let mut trumps = Vec::new();
         let mut trumps_less = Vec::new();
@@ -623,14 +612,10 @@ impl PlayerInGame {
                     if let Card::Trump(card_trump_value) = card {
                         if card_trump_value == &Trump::Fool {
                             and_fool = Some(i);
+                        } else if card_trump_value > master_trump_value {
+                            trumps_more.push(i);
                         } else {
-                            trumps.push(i);
-                            if card_trump_value > master_trump_value {
-                                trumps_more.push(i);
-                            } else {
-                                trumps_less.push(i);
-                                other_colors.push(i);
-                            }
+                            trumps_less.push(i);
                         }
                     } else {
                         other_colors.push(i);
@@ -687,5 +672,92 @@ impl PlayerInGame {
             compatibles.push(fool_index);
         }
         Ok(compatibles)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::PlayerInGame;
+    use crate::card::Card;
+    use crate::deck::Deck;
+    use crate::mode::Mode;
+    use crate::options::Options;
+    use crate::suit::Suit;
+    use crate::suit_value::SuitValue;
+    use crate::trump::Trump;
+    use crate::turn::Turn;
+
+    const CALLEE: Card = Card::normal(Suit::Club, SuitValue::King);
+
+    /// A full five players hand holding the called king and three other clubs.
+    fn hand() -> Deck {
+        Deck::new(vec![
+            Card::Trump(Trump::_5),
+            Card::Trump(Trump::_10),
+            CALLEE,
+            Card::normal(Suit::Club, SuitValue::Queen),
+            Card::normal(Suit::Club, SuitValue::_9),
+            Card::normal(Suit::Club, SuitValue::_5),
+            Card::normal(Suit::Heart, SuitValue::_1),
+            Card::normal(Suit::Heart, SuitValue::_2),
+            Card::normal(Suit::Heart, SuitValue::_3),
+            Card::normal(Suit::Spade, SuitValue::_1),
+            Card::normal(Suit::Spade, SuitValue::_2),
+            Card::normal(Suit::Spade, SuitValue::_3),
+            Card::normal(Suit::Diamond, SuitValue::_1),
+            Card::normal(Suit::Diamond, SuitValue::_2),
+            Card::normal(Suit::Diamond, SuitValue::_3),
+        ])
+    }
+
+    fn ally(hand: &Deck) -> PlayerInGame {
+        let mut player = PlayerInGame::new(Mode::Five, Options::default());
+        player.extend_hand(hand);
+        player.set_callee(Some(CALLEE));
+        player
+    }
+
+    fn playable(player: &PlayerInGame, turn: &Turn) -> Vec<Card> {
+        player
+            .choices(turn)
+            .unwrap()
+            .iter()
+            .map(|index| *player.hand().get(*index).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn ally_leading_first_turn_can_play_the_called_king() {
+        let player = ally(&hand());
+        assert!(player.is_first_turn());
+        let choices = playable(&player, &Turn::default());
+        // RULE: the called color cannot be led on the first turn, except the called card itself
+        assert!(choices.contains(&CALLEE));
+        assert!(!choices.contains(&Card::normal(Suit::Club, SuitValue::Queen)));
+        assert!(!choices.contains(&Card::normal(Suit::Club, SuitValue::_9)));
+        assert!(!choices.contains(&Card::normal(Suit::Club, SuitValue::_5)));
+        assert_eq!(choices.len(), 12);
+    }
+
+    #[test]
+    fn any_club_can_be_led_after_the_first_turn() {
+        let mut shorter = hand();
+        let _played = shorter.remove(0);
+        let player = ally(&shorter);
+        assert!(!player.is_first_turn());
+        let choices = playable(&player, &Turn::default());
+        assert!(choices.contains(&CALLEE));
+        assert!(choices.contains(&Card::normal(Suit::Club, SuitValue::Queen)));
+        assert_eq!(choices.len(), 14);
+    }
+
+    #[test]
+    fn ally_must_answer_with_the_called_king_when_clubs_are_asked() {
+        let player = ally(&hand());
+        let mut turn = Turn::default();
+        turn.put(Card::normal(Suit::Club, SuitValue::_7));
+        turn.master_index = Some(0);
+        assert_eq!(playable(&player, &turn), vec![CALLEE]);
     }
 }

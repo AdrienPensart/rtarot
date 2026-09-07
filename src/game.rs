@@ -15,7 +15,6 @@ pub struct Game<const MODE: usize> {
     options: Options,
     mode: Mode,
     players: [Player; MODE],
-    dealer: usize,
 }
 
 pub fn launch(mode: Mode, options: Options, deals: u64) -> Result<(), TarotErrorKind> {
@@ -57,10 +56,9 @@ impl<const MODE: usize> Game<MODE> {
             Ok(Player::new(name.to_string(), mode, player_options))
         })?;
         Ok(Self {
-            players,
-            mode,
             options,
-            dealer: 0,
+            mode,
+            players,
         })
     }
     pub fn is_consistent(&self) -> Result<(), TarotErrorKind> {
@@ -133,7 +131,7 @@ impl<const MODE: usize> Game<MODE> {
         for player in &players_in_game {
             if player.petit_sec() {
                 if !self.options.quiet {
-                    dbg!("Petit sec, cancel the game");
+                    println!("Petit sec, cancel the game");
                 }
                 return Ok(None);
             }
@@ -149,12 +147,8 @@ impl<const MODE: usize> Game<MODE> {
         self.players.rotate_left(index);
     }
     const fn rotate_dealer(&mut self) {
-        if self.dealer == self.players.len() - 1 {
-            self.dealer = 0;
-        } else {
-            self.dealer += 1;
-        }
-        self.rotate_at(self.dealer);
+        // RULE: the deal moves by exactly one seat between two deals
+        self.rotate_at(1);
     }
 }
 
@@ -238,7 +232,7 @@ mod tests {
         assert_eq!(Mode::Three.players(), 3);
         assert_eq!(Mode::Three.dog_size(), 6);
         assert_eq!(Mode::Three.cards_per_player(), 24);
-        assert_eq!(Mode::Three.cards_per_turn(), 4);
+        assert_eq!(Mode::Three.cards_per_turn(), 3);
         assert_eq!(Mode::Three.max_cards_for_taker(), 30);
     }
 
@@ -297,7 +291,7 @@ mod tests {
         assert_eq!(Mode::Four.players(), 4);
         assert_eq!(Mode::Four.dog_size(), 6);
         assert_eq!(Mode::Four.cards_per_player(), 18);
-        assert_eq!(Mode::Four.cards_per_turn(), 3);
+        assert_eq!(Mode::Four.cards_per_turn(), 4);
         assert_eq!(Mode::Four.max_cards_for_taker(), 24);
     }
 
@@ -357,7 +351,7 @@ mod tests {
         assert_eq!(Mode::Five.players(), 5);
         assert_eq!(Mode::Five.dog_size(), 3);
         assert_eq!(Mode::Five.cards_per_player(), 15);
-        assert_eq!(Mode::Five.cards_per_turn(), 3);
+        assert_eq!(Mode::Five.cards_per_turn(), 5);
         assert_eq!(Mode::Five.max_cards_for_taker(), 18);
     }
 

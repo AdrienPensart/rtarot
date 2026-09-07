@@ -10,14 +10,21 @@ pub struct Turn {
 }
 
 impl Turn {
+    /// Cards effectively won by the master of this turn.
+    ///
+    /// RULE: when the fool stays with its owner, it does not go to the master of the turn.
     #[must_use]
-    pub fn take_cards_except_fool(self) -> Deck {
-        Deck::new(
+    pub fn take_cards(self, fool_kept_by_owner: bool) -> Deck {
+        if fool_kept_by_owner {
+            Deck::new(
+                self.cards
+                    .into_iter()
+                    .filter(|card| !card.is_fool())
+                    .collect(),
+            )
+        } else {
             self.cards
-                .into_iter()
-                .filter(|card| card.is_fool())
-                .collect(),
-        )
+        }
     }
     pub fn put(&mut self, card: Card) {
         self.cards.push(card);
@@ -32,13 +39,8 @@ impl Turn {
     }
     #[must_use]
     pub fn called(&self) -> Option<&Card> {
-        for c in self.cards.iter() {
-            if c.is_fool() {
-                continue;
-            }
-            return Some(c);
-        }
-        None
+        // RULE: when the fool is played first, the called color is given by the next card
+        self.cards.iter().find(|card| !card.is_fool())
     }
     #[must_use]
     pub fn master_card(&self) -> Option<&Card> {
@@ -56,5 +58,45 @@ impl fmt::Display for Turn {
             write!(f, "\nMaster card: {master}")?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Turn;
+    use crate::card::Card;
+    use crate::suit::Suit;
+    use crate::suit_value::SuitValue;
+    use crate::trump::Trump;
+
+    fn turn_with_fool() -> Turn {
+        let mut turn = Turn::default();
+        turn.put(Card::normal(Suit::Heart, SuitValue::King));
+        turn.put(Card::Trump(Trump::Fool));
+        turn.put(Card::normal(Suit::Heart, SuitValue::_3));
+        turn.put(Card::Trump(Trump::_21));
+        turn
+    }
+
+    #[test]
+    fn master_wins_everything_but_a_kept_fool() {
+        let won = turn_with_fool().take_cards(true);
+        assert_eq!(won.len(), 3);
+        assert!(!won.has_fool());
+    }
+
+    #[test]
+    fn master_wins_a_lost_fool_too() {
+        let won = turn_with_fool().take_cards(false);
+        assert_eq!(won.len(), 4);
+        assert!(won.has_fool());
+    }
+
+    #[test]
+    fn called_color_skips_the_fool() {
+        let mut turn = Turn::default();
+        turn.put(Card::Trump(Trump::Fool));
+        turn.put(Card::normal(Suit::Club, SuitValue::_5));
+        assert_eq!(turn.called(), Some(&Card::normal(Suit::Club, SuitValue::_5)));
     }
 }

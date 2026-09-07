@@ -80,10 +80,7 @@ impl Mode {
     }
     #[must_use]
     pub const fn cards_per_turn(&self) -> usize {
-        match self {
-            Self::Three => 4,
-            Self::Five | Self::Four => 3,
-        }
+        self.players()
     }
     #[must_use]
     pub const fn cards_per_player(&self) -> usize {

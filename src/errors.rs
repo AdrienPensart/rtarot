@@ -13,7 +13,7 @@ pub enum TarotErrorKind {
     InvalidMode,
     #[error("Invalid deck : {0}")]
     InvalidDeck(Deck),
-    #[error("Invalid case")]
+    #[error("Invalid case : {0}")]
     InvalidCase(String),
     // #[error("Impossible case, taker cannot have all kings, queens, knights, jacks")]
     // AllSuitsError,
@@ -38,7 +38,7 @@ pub enum TarotErrorKind {
     NoPlayer(usize),
     #[error("No role for player : {0}")]
     NoRoleForPlayer(String),
-    #[error("No taker or auctions not finished")]
+    #[error("No taker or auctions not finished : {0}")]
     NoTaker(usize),
     #[error("No ally at index {0}")]
     NoAlly(usize),

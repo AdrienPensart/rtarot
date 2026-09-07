@@ -22,6 +22,10 @@ impl fmt::Display for Normal {
 
 impl Normal {
     #[must_use]
+    pub const fn new_const(suit: Suit, value: SuitValue) -> Self {
+        Self { suit, value }
+    }
+    #[must_use]
     pub const fn suit(&self) -> &Suit {
         &self.suit
     }

@@ -9,7 +9,6 @@ use crate::player_in_game::PlayerInGame;
 use crate::role::Role;
 use crate::team::Team;
 use derive_new::new;
-use itertools::{Either, Itertools};
 use std::fmt;
 use strum::IntoEnumIterator;
 
@@ -70,53 +69,34 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
     ) -> Result<Option<GameStarted<'a, MODE>>, TarotErrorKind> {
         let quiet = self.options.quiet;
         let mut contracts: Vec<Contract> = Contract::iter().collect();
-        let mut slam_index: Option<usize> = None;
         let mut taker_index: Option<usize> = None;
         let mut contract: Option<Contract> = None;
 
+        // RULE: bidding goes around once, each player either passes or overbids
         for (current_player_index, current_player_in_game) in
             self.players_in_game.iter_mut().enumerate()
         {
             let current_player = self.game.player(current_player_index)?;
-            let player_contract =
-                current_player_in_game.choose_contract_among(current_player, &contracts)?;
-            match (contract, player_contract) {
-                (None | Some(_), None) => {}
-                (None | Some(_), Some(player_contract)) => {
-                    taker_index = Some(current_player_index);
-                    if !self.options.quiet {
-                        println!(
-                            "Player {} has chosen contract {player_contract}",
-                            current_player.name()
-                        );
-                    }
-                    contracts.retain(|other_contract| {
-                        other_contract.multiplier() > player_contract.multiplier()
-                    });
-                    if current_player_in_game.announce_slam()? {
-                        if !self.options.quiet {
-                            println!("Player {current_player} announced a slam");
-                        }
-                        slam_index = Some(current_player_index);
-                    }
-                    contract = Some(player_contract);
-                }
+            let Some(player_contract) =
+                current_player_in_game.choose_contract_among(current_player, &contracts)?
+            else {
+                continue;
+            };
+            if !quiet {
+                println!(
+                    "Player {} has chosen contract {player_contract}",
+                    current_player.name()
+                );
             }
+            contracts.retain(|other_contract| {
+                other_contract.multiplier() > player_contract.multiplier()
+            });
+            taker_index = Some(current_player_index);
+            contract = Some(player_contract);
         }
-        let Some(contract) = contract else {
+        let (Some(contract), Some(taker_index)) = (contract, taker_index) else {
             return Ok(None);
         };
-        let Some(taker_index) = taker_index else {
-            return Ok(None);
-        };
-
-        // RULE: player who slammed must start
-        if let Some(slammer) = slam_index {
-            if !self.options.quiet {
-                println!("Chelem announced so {slammer} must start.");
-            }
-            self.rotate_at(slammer);
-        }
 
         let Some(taker) = self.players_in_game.get(taker_index) else {
             return Err(TarotErrorKind::NoTaker(taker_index));
@@ -124,77 +104,80 @@ impl<'a, const MODE: usize> GameDistributed<'a, MODE> {
         let callee = taker.call()?;
         for (current_player_index, current_player) in self.players_in_game.iter_mut().enumerate() {
             current_player.set_callee(callee);
-            current_player.set_team(Team::Defense);
-            current_player.set_role(Role::Defenser);
             if current_player_index == taker_index {
                 current_player.set_team(Team::Attack);
                 current_player.set_role(Role::Taker);
-            } else if let Some(ref card) = callee
-                && current_player_index != taker_index
-                && current_player.has(card)
-            {
+            } else if callee.is_some_and(|card| current_player.has(&card)) {
                 current_player.set_team(Team::Attack);
                 current_player.set_role(Role::Ally);
+            } else {
+                current_player.set_team(Team::Defense);
+                current_player.set_role(Role::Defenser);
             }
         }
 
-        let (attacker_indices, defenser_indices): (Vec<_>, Vec<_>) = self
-            .players_in_game
-            .iter()
-            .enumerate()
-            .partition_map(|(i, player)| {
-                if player.is_attack() {
-                    Either::Left(i)
-                } else {
-                    Either::Right(i)
+        // RULE: the slam is announced by the taker, before the dog is turned over
+        let Some(taker_in_game) = self.players_in_game.get_mut(taker_index) else {
+            return Err(TarotErrorKind::NoTaker(taker_index));
+        };
+        let slam_announced = taker_in_game.announce_slam()?;
+
+        match contract {
+            Contract::GardeSans => {
+                // RULE: the dog belongs to the attack but is never seen
+                if !quiet {
+                    println!("Attacker keeps dog because GardeSans");
                 }
-            });
-
-        for attacker_index in attacker_indices {
-            let attacker_in_game = self
-                .players_in_game
-                .get_mut(attacker_index)
-                .ok_or(TarotErrorKind::NoAttacker(attacker_index))?;
-
-            if !attacker_in_game.is_taker() {
-                continue;
+                let Some(taker_in_game) = self.players_in_game.get_mut(taker_index) else {
+                    return Err(TarotErrorKind::NoTaker(taker_index));
+                };
+                taker_in_game.set_discard(&self.dog);
             }
-
-            let taker = self
-                .game
-                .player(attacker_index)
-                .map_err(|_| TarotErrorKind::NoTaker(attacker_index))?;
-
-            match contract {
-                Contract::GardeSans => {
-                    if !quiet {
-                        println!("Attacker keeps dog because GardeSans");
-                    }
-                    attacker_in_game.set_discard(&self.dog);
+            Contract::GardeContre => {
+                // RULE: the dog goes to the defense and is never seen
+                let Some(first_defenser_index) = (0..MODE).find(|index| {
+                    self.players_in_game
+                        .get(*index)
+                        .is_some_and(|player| !player.is_attack())
+                }) else {
+                    return Err(TarotErrorKind::NoDefenser(0));
+                };
+                if !quiet {
+                    println!("Attacker gives dog to first defenser because GardeContre");
                 }
-                Contract::GardeContre => {
-                    if let Some(first_defenser_index) = defenser_indices.first() {
-                        if !quiet {
-                            println!("Attacker gives dog to first defenser because GardeContre");
-                        }
-                        let Some(defenser) = self.players_in_game.get_mut(*first_defenser_index)
-                        else {
-                            return Err(TarotErrorKind::NoDefenser(*first_defenser_index));
-                        };
-                        defenser.set_discard(&self.dog);
-                    }
+                let Some(defenser) = self.players_in_game.get_mut(first_defenser_index) else {
+                    return Err(TarotErrorKind::NoDefenser(first_defenser_index));
+                };
+                defenser.set_discard(&self.dog);
+            }
+            Contract::Petite | Contract::Garde => {
+                if !quiet {
+                    println!("In the dog, there was : {}", self.dog);
+                    println!(
+                        "Taker {} received the dog",
+                        self.game.player(taker_index)?.name()
+                    );
                 }
-                Contract::Petite | Contract::Garde => {
-                    if !quiet {
-                        println!("In the dog, there was : {}", self.dog);
-                        println!("Taker {} received the dog", taker.name());
-                    }
-                    attacker_in_game.extend_hand(&self.dog);
-                    attacker_in_game.discard()?;
-                }
+                let Some(taker_in_game) = self.players_in_game.get_mut(taker_index) else {
+                    return Err(TarotErrorKind::NoTaker(taker_index));
+                };
+                taker_in_game.extend_hand(&self.dog);
+                taker_in_game.discard()?;
             }
         }
-        let game_started = GameStarted::new(self, taker_index, contract, self.options);
+
+        // RULE: the player who announced a slam must start, so he is rotated to the first seat
+        if slam_announced {
+            if !quiet {
+                println!(
+                    "Chelem announced so {} must start.",
+                    self.game.player(taker_index)?.name()
+                );
+            }
+            self.rotate_at(taker_index);
+        }
+
+        let game_started = GameStarted::new(self, contract, self.options);
         Ok(Some(game_started))
     }
 }
