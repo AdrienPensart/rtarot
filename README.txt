@@ -4,6 +4,12 @@ Implemented with :
 - rules : http://www.fftarot.fr/assets/documents/R-RO201206.pdf
 - traductions : https://en.wikipedia.org/wiki/French_tarot
 
+Crates :
+- core : the rules engine, no user interface
+- cli : terminal front end, `cargo run -p rtarot-cli`
+- gui : desktop front end drawn with egui (immediate mode, wgpu/Metal on macOS),
+  `cargo run -p rtarot-gui --release`
+
 Usage :
 - coverage :
   - cargo install cargo-tarpaulin

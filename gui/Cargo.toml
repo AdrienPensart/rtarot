@@ -1,0 +1,22 @@
+[package]
+name = "rtarot-gui"
+description = "Desktop interface for the rtarot engine, drawn with egui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "rtarot-gui"
+path = "src/main.rs"
+
+[dependencies]
+rtarot-core.workspace = true
+ordered-float.workspace = true
+strum.workspace = true
+# Immediate mode GUI. The default backend is wgpu, which runs on Metal on macOS.
+eframe = "0.36.2"
+egui = "0.36.2"
+rand = "0.10"
+
+[lints]
+workspace = true

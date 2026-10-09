@@ -98,8 +98,8 @@ impl Mode {
         match self {
             Self::Three => match index {
                 0 => Ok("East"),
-                1 => Ok("North"),
-                2 => Ok("South"),
+                1 => Ok("West"),
+                2 => Ok("South"), // player
                 _ => Err(TarotErrorKind::InvalidCase(
                     "Mode with 3 players does not support more than 3 default names".to_string(),
                 )),
@@ -107,8 +107,8 @@ impl Mode {
             Self::Four => match index {
                 0 => Ok("East"),
                 1 => Ok("North"),
-                2 => Ok("South"),
-                3 => Ok("West"),
+                2 => Ok("West"),
+                3 => Ok("South"), // player
                 _ => Err(TarotErrorKind::InvalidCase(
                     "Mode with 4 players does not support more than 4 default names".to_string(),
                 )),
@@ -116,8 +116,8 @@ impl Mode {
             Self::Five => match index {
                 0 => Ok("East"),
                 1 => Ok("North"),
-                2 => Ok("South"),
-                3 => Ok("West"),
+                2 => Ok("West"),
+                3 => Ok("South"),
                 4 => Ok("Compass"),
                 _ => Err(TarotErrorKind::InvalidCase(
                     "Mode with 5 players does not support more than 5 default names".to_string(),
