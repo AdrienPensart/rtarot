@@ -2,9 +2,12 @@
 
 use crate::log;
 use egui::Context;
+use ordered_float::OrderedFloat;
 use rand::RngExt;
+use rtarot_core::bot;
 use rtarot_core::{
-    Answer, Card, Contract, Deal, Deck, Engine, Event, Mode, PlayerInGame, Question, TarotErrorKind,
+    Answer, Card, Contract, Deal, Deck, Engine, Event, Mode, PlayerInGame, Points, Question,
+    TarotErrorKind, Team,
 };
 use std::time::{Duration, Instant};
 
@@ -21,6 +24,8 @@ pub struct Settings {
     pub no_slam: bool,
     /// Answer by itself when only one card is legal.
     pub auto: bool,
+    /// Seconds a finished trick stays on the table before it is folded.
+    pub trick_delay: f32,
     /// Seconds a bot waits before answering, so that a human can follow.
     pub bot_delay: f32,
 }
@@ -42,7 +47,8 @@ impl Default for Settings {
             seat: Self::south(Mode::Four),
             attack: false,
             no_slam: false,
-            auto: true,
+            auto: false,
+            trick_delay: 2.0,
             bot_delay: 0.8,
         }
     }
@@ -86,6 +92,8 @@ pub struct Trick {
 #[derive(Clone, Debug, Default)]
 pub struct Summary {
     pub rows: Vec<(String, String)>,
+    /// What each seat won or lost on the deal.
+    pub gains: Vec<OrderedFloat<f64>>,
 }
 
 pub struct Game {
@@ -98,12 +106,30 @@ pub struct Game {
     pub bids: Vec<Bid>,
     pub trick: Trick,
     pub last_trick: Option<Trick>,
-    /// The dog, from the moment it is turned over until the first card is played.
+    /// Every trick of the deal so far, in order.
+    pub tricks: Vec<Trick>,
+    /// The dog, from the moment it is turned over until the taker starts discarding.
     pub dog: Option<Deck>,
+    /// The cards the human has set aside for the dog, not yet given to the engine.
+    pub discard_pick: Vec<Card>,
+    /// Whether the human ticked the slam box while bidding.
+    pub slam_intent: bool,
     pub summary: Option<Summary>,
     pub error: Option<String>,
     /// Bots stay still while a summary is being read.
     pub paused: bool,
+    /// What happened after the deal was scored, held back until the next deal is asked for.
+    deferred: Vec<Event>,
+    /// Whether the window listing the tricks won is open.
+    pub show_tricks: bool,
+    /// Whether the window showing the last trick is open.
+    pub show_last: bool,
+    /// Whether the table talk panel is shown.
+    pub show_log: bool,
+    /// Until when the last trick stays on the table.
+    last_trick_until: Instant,
+    /// Whether the window replaying the deal trick by trick is open.
+    pub show_history: bool,
     next_bot_at: Instant,
 }
 
@@ -119,10 +145,19 @@ impl Game {
             ally: None,
             bids: vec![Bid::Silent; settings.mode.players()],
             last_trick: None,
+            tricks: Vec::new(),
             dog: None,
+            discard_pick: Vec::new(),
+            slam_intent: false,
             summary: None,
             error: None,
             paused: false,
+            deferred: Vec::new(),
+            show_tricks: false,
+            show_last: false,
+            show_log: false,
+            last_trick_until: Instant::now(),
+            show_history: false,
             next_bot_at: Instant::now(),
         };
         game.drain_events();
@@ -139,14 +174,81 @@ impl Game {
             .map_or_else(|_| format!("player {index}"), |p| p.name().to_string())
     }
 
+    /// The deal on the table: the one being played, or the one just scored
+    /// while its score sheet is being read.
+    pub const fn deal(&self) -> Option<&Deal> {
+        if self.paused {
+            self.engine.last_deal()
+        } else {
+            self.engine.deal()
+        }
+    }
+
     pub fn taker(&self) -> Option<usize> {
-        self.engine.deal().and_then(Deal::taker)
+        self.deal().and_then(Deal::taker)
+    }
+
+    /// Whether everybody knows who plays with whom: at once with three or four
+    /// players, once the called king has been played with five.
+    pub fn sides_known(&self) -> bool {
+        self.engine.mode() != Mode::Five || self.ally.is_some()
+    }
+
+    /// Card points taken so far by a side.
+    pub fn team_points(&self, team: Team) -> OrderedFloat<f64> {
+        self.deal().map_or(OrderedFloat(0.0), |deal| {
+            deal.players()
+                .iter()
+                .filter(|player| player.team() == Some(team))
+                .map(|player| player.owned().points())
+                .sum()
+        })
+    }
+
+    /// How many cards the human has to put in the dog, while that is being asked.
+    pub fn picking(&self) -> Option<usize> {
+        if let Some(Question::Discard { remaining, .. }) = self.human_question() {
+            Some(*remaining)
+        } else {
+            None
+        }
+    }
+
+    /// Hand the picked discard to the engine, one card at a time.
+    pub fn commit_discard(&mut self) {
+        while let Some(Question::Discard { allowed, .. }) = self.human_question().cloned() {
+            let Some(index) = self
+                .discard_pick
+                .iter()
+                .position(|card| allowed.contains(card))
+            else {
+                break;
+            };
+            let card = self.discard_pick.remove(index);
+            self.answer(Answer::Card(card));
+            if self.error.is_some() {
+                break;
+            }
+        }
+    }
+
+    /// Whether the last trick is still on the table, and for how long.
+    pub fn last_trick_showing(&self) -> Option<Duration> {
+        self.last_trick_until.checked_duration_since(Instant::now())
+    }
+
+    /// Read the score sheet, then let the next deal start.
+    pub fn next_deal(&mut self) {
+        self.summary = None;
+        self.show_history = false;
+        self.paused = false;
+        let deferred = std::mem::take(&mut self.deferred);
+        self.process(deferred);
     }
 
     /// The king the taker called, five players only.
     pub fn callee(&self) -> Option<Card> {
-        self.engine
-            .deal()
+        self.deal()
             .and_then(|deal| deal.players().first())
             .and_then(PlayerInGame::callee)
     }
@@ -162,7 +264,7 @@ impl Game {
     /// What to write next to a name: the contract once the auction is over,
     /// else what that seat bid so far.
     pub fn bid_label(&self, seat: usize) -> Option<String> {
-        if let Some(deal) = self.engine.deal()
+        if let Some(deal) = self.deal()
             && let (Some(contract), Some(taker)) = (deal.contract(), deal.taker())
         {
             return (taker == seat).then(|| contract.to_string());
@@ -191,13 +293,23 @@ impl Game {
 
     /// Pull everything that happened out of the engine. Returns whether a turn ended.
     fn drain_events(&mut self) -> bool {
+        let events = self.engine.take_events();
+        self.process(events)
+    }
+
+    /// Apply `events` to the table. Whatever follows a scored deal waits for [`Self::next_deal`].
+    fn process(&mut self, events: Vec<Event>) -> bool {
         let mut turn_won = false;
-        for event in self.engine.take_events() {
+        let mut events = events.into_iter();
+        while let Some(event) = events.next() {
             match &event {
                 Event::DealStarted { .. } => {
                     self.trick = Trick::default();
                     self.last_trick = None;
+                    self.tricks.clear();
                     self.dog = None;
+                    self.discard_pick.clear();
+                    self.slam_intent = false;
                     self.ally = None;
                     self.bids.iter_mut().for_each(|bid| *bid = Bid::Silent);
                 }
@@ -213,13 +325,17 @@ impl Game {
                 Event::TurnWon { player, .. } => {
                     let mut done = std::mem::take(&mut self.trick);
                     done.winner = Some(*player);
+                    self.tricks.push(done.clone());
                     self.last_trick = Some(done);
+                    self.last_trick_until = Instant::now()
+                        + Duration::from_secs_f32(self.settings.trick_delay.max(0.0));
                     turn_won = true;
                 }
                 Event::DealScored { .. } => {
                     self.summary = Some(log::summary(&self.engine, &event));
                     self.paused = true;
                 }
+                Event::Discarded { .. } => self.dog = None,
                 Event::Bid { player, contract } => {
                     if let Some(bid) = self.bids.get_mut(*player) {
                         *bid = contract.map_or(Bid::Pass, Bid::Contract);
@@ -231,7 +347,6 @@ impl Game {
                 | Event::SlamAnnounced { .. }
                 | Event::DogKeptByAttack { .. }
                 | Event::DogGivenToDefense { .. }
-                | Event::Discarded { .. }
                 | Event::HandleAnnounced { .. }
                 | Event::FoolKept { .. }
                 | Event::FoolLost { .. }
@@ -252,6 +367,10 @@ impl Game {
             };
             self.log
                 .push(tag(&log::describe(&self.engine, &event), &marks));
+            if matches!(event, Event::DealScored { .. }) {
+                self.deferred.extend(events.by_ref());
+                break;
+            }
         }
         turn_won
     }
@@ -262,15 +381,21 @@ impl Game {
             self.error = Some(error.to_string());
         }
         let turn_won = self.drain_events();
-        // A finished trick stays on the table twice as long as a single card.
-        let factor = if turn_won { 2 } else { 1 };
-        self.next_bot_at = Instant::now() + self.delay() * factor;
+        // A finished trick stays on the table before the bots go on.
+        let wait = if turn_won {
+            self.delay()
+                .max(Duration::from_secs_f32(self.settings.trick_delay.max(0.0)))
+        } else {
+            self.delay()
+        };
+        self.next_bot_at = Instant::now() + wait;
     }
 
     /// What the human does not even need to be asked.
-    fn automatic(&self, question: &Question) -> Option<Answer> {
+    const fn automatic(&self, question: &Question) -> Option<Answer> {
         match question {
-            Question::Slam { .. } => self.settings.no_slam.then_some(Answer::Slam(false)),
+            // The slam was decided with the bid, by a checkbox.
+            Question::Slam { .. } => Some(Answer::Slam(self.slam_intent && !self.settings.no_slam)),
             Question::Call { allowed, .. }
             | Question::Discard { allowed, .. }
             | Question::Play { allowed, .. } => match allowed.as_slice() {
@@ -285,14 +410,14 @@ impl Game {
         }
     }
 
-    fn bot_answer(&mut self, question: &Question) -> Result<Answer, TarotErrorKind> {
+    fn bot_answer(&self, question: &Question) -> Result<Answer, TarotErrorKind> {
         if self.settings.no_slam && matches!(question, Question::Slam { .. }) {
             return Ok(Answer::Slam(false));
         }
         if self.settings.attack && matches!(question, Question::Contract { .. }) {
             return Ok(Answer::Contract(None));
         }
-        self.engine.random_answer(question)
+        bot::answer(&self.engine, question)
     }
 
     /// Let the bots play, as far as the clock allows. Called once per frame.
@@ -365,7 +490,7 @@ fn tag(text: &str, marks: &[(String, Tone)]) -> Line {
 #[cfg(test)]
 mod tests {
     use super::{Game, Settings, Span, Tone, tag};
-    use rtarot_core::Mode;
+    use rtarot_core::{Mode, Question};
     use strum::IntoEnumIterator;
 
     /// A whole game where the human answers at random, with instant bots.
@@ -377,6 +502,7 @@ mod tests {
                 seat: Settings::south(mode),
                 deals: 3,
                 bot_delay: 0.0,
+                trick_delay: 0.0,
                 ..Settings::default()
             };
             let mut game = Game::new(&settings);
@@ -388,8 +514,19 @@ mod tests {
                 game.tick(&ctx);
                 assert_eq!(game.error, None);
                 if game.paused {
-                    game.summary = None;
-                    game.paused = false;
+                    assert!(game.deal().is_some(), "the scored deal stays on the table");
+                    game.next_deal();
+                    continue;
+                }
+                if let Some(Question::Discard {
+                    allowed, remaining, ..
+                }) = game.human_question().cloned()
+                {
+                    // The human picks the whole discard first, then confirms it.
+                    game.discard_pick
+                        .extend(allowed.iter().take(remaining).copied());
+                    game.commit_discard();
+                    assert!(game.discard_pick.is_empty(), "the discard is given whole");
                     continue;
                 }
                 if let Some(question) = game.human_question().cloned() {
@@ -399,6 +536,10 @@ mod tests {
                         .expect("a legal answer");
                     game.answer(answer);
                 }
+            }
+            // The last score sheet still waits to be read when the human plays last.
+            if game.paused {
+                game.next_deal();
             }
             let text = |line: &Vec<Span>| {
                 line.iter()

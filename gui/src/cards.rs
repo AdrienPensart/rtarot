@@ -1,14 +1,16 @@
-//! Painting cards with the egui painter: no textures, only shapes and text.
+//! Painting cards: the embedded images when they are loaded, shapes and text otherwise.
 
+use crate::textures::Textures;
 use egui::{
     Align2, Color32, CornerRadius, FontId, Painter, Pos2, Rect, Stroke, StrokeKind, Vec2, pos2,
     vec2,
 };
 use rtarot_core::{Card, Color, Normal, Representation, Suit, SuitValue, Trump};
 
-pub const HAND_CARD: Vec2 = vec2(74.0, 106.0);
-pub const TRICK_CARD: Vec2 = vec2(64.0, 92.0);
-pub const SMALL_CARD: Vec2 = vec2(46.0, 66.0);
+// Tarot cards are tall: the images are 250 by 481 pixels.
+pub const HAND_CARD: Vec2 = vec2(82.0, 144.0);
+pub const TRICK_CARD: Vec2 = vec2(70.0, 124.0);
+pub const SMALL_CARD: Vec2 = vec2(53.0, 94.0);
 
 const RADIUS: CornerRadius = CornerRadius::same(6);
 const FACE: Color32 = Color32::from_rgb(250, 247, 238);
@@ -61,8 +63,14 @@ pub fn paint_suit(painter: &Painter, center: Pos2, size: f32, suit: Suit, color:
     }
 }
 
-/// A card, face up.
-pub fn paint_card(painter: &Painter, rect: Rect, card: Card) {
+/// A card, face up: its image when there is one, else a drawing.
+pub fn paint_card(painter: &Painter, rect: Rect, card: Card, textures: &Textures) {
+    if let Some(texture) = textures.face(card) {
+        let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+        // The images carry their own border and rounded corners.
+        painter.image(texture.id(), rect, uv, Color32::WHITE);
+        return;
+    }
     painter.rect(
         rect,
         RADIUS,

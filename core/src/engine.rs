@@ -164,6 +164,8 @@ pub struct Engine {
     dealer: usize,
     players: Vec<Player>,
     deal: Option<Deal>,
+    /// The deal that was just scored, until the next one is.
+    last_deal: Option<Deal>,
     phase: Phase,
     pending: Option<Question>,
     events: Vec<Event>,
@@ -194,6 +196,7 @@ impl Engine {
             dealer: 0,
             players,
             deal: None,
+            last_deal: None,
             phase: Phase::Dealing,
             pending: None,
             events: Vec::new(),
@@ -224,6 +227,11 @@ impl Engine {
     #[must_use]
     pub const fn deal(&self) -> Option<&Deal> {
         self.deal.as_ref()
+    }
+    /// The deal that was just scored: its tricks, discard and dog, as they ended.
+    #[must_use]
+    pub const fn last_deal(&self) -> Option<&Deal> {
+        self.last_deal.as_ref()
     }
     #[must_use]
     pub const fn dealer(&self) -> usize {
@@ -832,7 +840,7 @@ impl Engine {
         });
         self.is_consistent()?;
 
-        self.deal = None;
+        self.last_deal = self.deal.take();
         self.deals_left = self.deals_left.saturating_sub(1);
         self.rotate_dealer();
         self.phase = Phase::Dealing;
@@ -1596,5 +1604,32 @@ mod tests {
             deal.players().iter().all(|p| p.owned().is_empty()),
             "no turn is won before the first card is played"
         );
+    }
+
+    #[test]
+    fn the_scored_deal_stays_readable_after_the_next_one_is_dealt() {
+        let mut engine = Engine::new(crate::mode::Mode::Four, 2, 3);
+        assert!(engine.last_deal().is_none());
+        let mut seen = 0;
+        while let Some(question) = engine.pending().cloned() {
+            let answer = engine.random_answer(&question).expect("a legal answer");
+            engine.answer(answer).expect("a legal answer");
+            let scored = engine
+                .take_events()
+                .iter()
+                .any(|event| matches!(event, crate::event::Event::DealScored { .. }));
+            if scored {
+                let last = engine.last_deal().expect("the scored deal is kept");
+                let cards: usize = last
+                    .players()
+                    .iter()
+                    .map(|player| player.all_cards().len())
+                    .sum();
+                assert_eq!(cards, crate::constants::MAX_CARDS);
+                assert!(last.taker().is_some());
+                seen += 1;
+            }
+        }
+        assert!(seen > 0);
     }
 }

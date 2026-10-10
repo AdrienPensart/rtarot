@@ -18,6 +18,7 @@
 //! # Ok::<(), rtarot_core::TarotErrorKind>(())
 //! ```
 
+pub mod bot;
 pub mod card;
 pub mod constants;
 pub mod contract;

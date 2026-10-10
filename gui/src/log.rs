@@ -115,6 +115,7 @@ pub fn summary(engine: &Engine, event: &Event) -> Summary {
             .map_or_else(|_| format!("player {index}"), |p| p.name().to_string())
     };
     let mut rows = Vec::new();
+    let mut gains = Vec::new();
     if let Event::DealScored {
         taker,
         ally,
@@ -145,9 +146,22 @@ pub fn summary(engine: &Engine, event: &Event) -> Summary {
         rows.push(("Handles".to_string(), handles.to_string()));
         rows.push(("Slam".to_string(), slam.to_string()));
         rows.push(("Deal worth".to_string(), format!("{points} for the attack")));
-        for player in engine.players() {
-            rows.push((player.name().to_string(), player.score().to_string()));
+        // What each seat won or lost on this deal, the way the engine paid it out.
+        let ratio = engine.mode().ratio(ally.is_some());
+        for (seat, player) in engine.players().iter().enumerate() {
+            let gain = if seat == *taker {
+                ratio * *points
+            } else if Some(seat) == *ally {
+                *points
+            } else {
+                -*points
+            };
+            gains.push(gain);
+            rows.push((
+                player.name().to_string(),
+                format!("{gain:+} (total {})", player.score()),
+            ));
         }
     }
-    Summary { rows }
+    Summary { rows, gains }
 }

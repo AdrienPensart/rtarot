@@ -5,7 +5,8 @@ Implemented with :
 - traductions : https://en.wikipedia.org/wiki/French_tarot
 
 Crates :
-- core : the rules engine, no user interface
+- core : the rules engine, no user interface; `bot` holds the rules of thumb
+  bots play by (pass `--dumb` to the cli for random bots)
 - cli : terminal front end, `cargo run -p rtarot-cli`
 - gui : desktop front end drawn with egui (immediate mode, wgpu/Metal on macOS),
   `cargo run -p rtarot-gui --release`

@@ -12,6 +12,7 @@ mod app;
 mod cards;
 mod game;
 mod log;
+mod textures;
 mod view;
 
 fn main() -> eframe::Result {

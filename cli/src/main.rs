@@ -5,7 +5,7 @@
 
 use clap::Parser;
 use rand::RngExt;
-use rtarot_core::{Answer, Engine, Mode, Question, TarotErrorKind};
+use rtarot_core::{Answer, Engine, Mode, Question, TarotErrorKind, bot};
 use std::error;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
@@ -33,9 +33,13 @@ struct Opts {
     #[arg(long = "attack")]
     attack: bool,
 
-    /// Nobody is human, every seat is played at random
+    /// Nobody is human, every seat is played by a bot
     #[arg(short = 'r', long = "random")]
     random: bool,
+
+    /// Bots answer at random instead of following their rules of thumb
+    #[arg(long = "dumb")]
+    dumb: bool,
 
     /// Answer by itself when only one card is legal
     #[arg(short = 'a', long = "auto")]
@@ -85,7 +89,11 @@ fn choose(engine: &mut Engine, question: &Question, opts: &Opts) -> Result<Answe
     if opts.attack && matches!(question, Question::Contract { .. }) {
         return Ok(Answer::Contract(None));
     }
-    engine.random_answer(question)
+    // Test mode hunts rule breakages, which random play finds faster.
+    if opts.dumb || opts.test {
+        return engine.random_answer(question);
+    }
+    bot::answer(engine, question)
 }
 
 /// The allowed cards of a question, when it is a card question.

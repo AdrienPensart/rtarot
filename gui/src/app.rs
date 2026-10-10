@@ -1,6 +1,7 @@
 //! The application: a setup screen, then a table.
 
 use crate::game::{Game, Settings};
+use crate::textures::Textures;
 use crate::view::{self, Outcome};
 use rtarot_core::Mode;
 use strum::IntoEnumIterator;
@@ -13,6 +14,7 @@ enum Screen {
 pub struct TarotApp {
     settings: Settings,
     screen: Screen,
+    textures: Textures,
 }
 
 impl TarotApp {
@@ -22,6 +24,7 @@ impl TarotApp {
         Self {
             settings: Settings::default(),
             screen: Screen::Setup,
+            textures: Textures::load(&cc.egui_ctx),
         }
     }
 
@@ -90,6 +93,14 @@ impl TarotApp {
                                 .fixed_decimals(1),
                         );
                         ui.end_row();
+
+                        ui.label("Finished trick stays");
+                        ui.add(
+                            egui::Slider::new(&mut settings.trick_delay, 0.0..=6.0)
+                                .suffix(" s")
+                                .fixed_decimals(1),
+                        );
+                        ui.end_row();
                     });
                 ui.add_space(24.0);
                 if ui
@@ -118,7 +129,7 @@ impl eframe::App for TarotApp {
                 .then(|| Screen::Table(Box::new(Game::new(&self.settings)))),
             Screen::Table(game) => {
                 game.tick(ui.ctx());
-                match view::show(game, ui) {
+                match view::show(game, ui, &self.textures) {
                     Outcome::Continue => None,
                     Outcome::Quit => Some(Screen::Setup),
                 }

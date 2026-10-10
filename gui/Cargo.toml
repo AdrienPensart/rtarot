@@ -17,6 +17,8 @@ strum.workspace = true
 eframe = "0.36.2"
 egui = "0.36.2"
 rand = "0.10"
+# Decodes the embedded card scans.
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [lints]
 workspace = true
