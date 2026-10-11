@@ -156,6 +156,7 @@ impl eframe::App for TarotApp {
                 match view::show(game, ui, &self.textures) {
                     Outcome::Continue => None,
                     Outcome::Quit => Some(Screen::Setup),
+                    Outcome::Replay => Some(Screen::Table(Box::new(game.replay()))),
                 }
             }
         };

@@ -25,6 +25,8 @@ const ALLY: Color32 = Color32::from_rgb(120, 200, 255);
 pub enum Outcome {
     Continue,
     Quit,
+    /// Start the game over with the very same cards.
+    Replay,
 }
 
 /// The whole table for one frame.
@@ -38,6 +40,13 @@ pub fn show(game: &mut Game, ui: &mut Ui, textures: &Textures) -> Outcome {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Quit to menu").clicked() {
                     outcome = Outcome::Quit;
+                }
+                if ui
+                    .button("Replay")
+                    .on_hover_text("Start over with the same cards")
+                    .clicked()
+                {
+                    outcome = Outcome::Replay;
                 }
                 ui.toggle_value(&mut game.show_log, "Log");
                 ui.toggle_value(&mut game.show_tricks, "Tricks won");
@@ -153,9 +162,14 @@ pub fn show(game: &mut Game, ui: &mut Ui, textures: &Textures) -> Outcome {
                         }
                     });
                 ui.add_space(8.0);
-                if ui.button("Back to menu").clicked() {
-                    outcome = Outcome::Quit;
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Back to menu").clicked() {
+                        outcome = Outcome::Quit;
+                    }
+                    if ui.button("Replay the same cards").clicked() {
+                        outcome = Outcome::Replay;
+                    }
+                });
             });
     }
     outcome

@@ -105,6 +105,8 @@ pub struct Summary {
 pub struct Game {
     pub settings: Settings,
     pub engine: Engine,
+    /// What the engine was seeded with: the same seed deals the same cards again.
+    seed: u64,
     pub log: Vec<Line>,
     /// The taker's partner, once the called king has been seen on the table.
     pub ally: Option<usize>,
@@ -149,7 +151,22 @@ pub struct Game {
 
 impl Game {
     pub fn new(settings: &Settings) -> Self {
-        let seed = rand::rng().random();
+        Self::with_seed(settings, rand::rng().random())
+    }
+
+    /// The same game again: same seed, so the same cards are dealt first.
+    ///
+    /// With traditional dealing the later deals depend on how the tricks fell,
+    /// so only the first deal is sure to come back identical.
+    pub fn replay(&self) -> Self {
+        Self::with_seed(&self.settings, self.seed)
+    }
+
+    // pub const fn seed(&self) -> u64 {
+    //     self.seed
+    // }
+
+    pub fn with_seed(settings: &Settings, seed: u64) -> Self {
         let names = (0..settings.mode.players())
             .map(|index| {
                 settings
@@ -167,6 +184,7 @@ impl Game {
         let mut game = Self {
             settings: settings.clone(),
             engine,
+            seed,
             log: Vec::new(),
             trick: Trick::default(),
             ally: None,
@@ -693,6 +711,34 @@ mod tests {
                 .iter()
                 .any(|line| text(line).contains("plays alone"))
         );
+    }
+
+    #[test]
+    fn a_replay_deals_the_same_cards_again() {
+        let settings = Settings {
+            bot_delay: 0.0,
+            trick_delay: 0.0,
+            ..Settings::default()
+        };
+        let mut game = Game::new(&settings);
+        let dealt = game.engine.deal().expect("a deal").dealt().to_vec();
+        let dog = game.engine.deal().expect("a deal").dog().clone();
+        // play a bit, so that the replay really starts over
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            game.tick(&ctx);
+            if let Some(question) = game.human_question().cloned() {
+                let answer = game.engine.random_answer(&question).expect("legal");
+                game.answer(answer);
+            }
+        }
+        let again = game.replay();
+        // assert_eq!(again.seed(), game.seed());
+        let deal = again.engine.deal().expect("a fresh deal");
+        assert_eq!(deal.dealt(), dealt.as_slice());
+        assert_eq!(deal.dog(), &dog);
+        assert_eq!(again.engine.deals_left(), settings.deals);
+        assert!(again.tricks.is_empty());
     }
 
     #[test]
