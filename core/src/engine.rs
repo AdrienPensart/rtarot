@@ -1,16 +1,18 @@
 use ordered_float::OrderedFloat;
+use rand::Rng;
 use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::card::Card;
-use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS, MAX_POINTS};
+use crate::constants::{BASE_CONTRACT_POINTS, MAX_CARDS, MAX_POINTS, MIN_CUT};
 use crate::contract::Contract;
 use crate::deck::Deck;
 use crate::errors::TarotErrorKind;
 use crate::event::Event;
 use crate::handle::Handle;
 use crate::mode::Mode;
+use crate::options::{Dealing, Direction, Options};
 use crate::player::Player;
 use crate::player_in_game::PlayerInGame;
 use crate::points::Points;
@@ -38,6 +40,9 @@ enum Phase {
 #[derive(Clone, Debug)]
 pub struct Deal {
     dog: Deck,
+    /// Every hand as it was dealt, before the dog and the play touched it.
+    dealt: Vec<Deck>,
+    dealer: usize,
     players: Vec<PlayerInGame>,
     contract: Option<Contract>,
     taker: Option<usize>,
@@ -55,14 +60,25 @@ pub struct Deal {
     petit_au_bout: Option<Team>,
     attack_cards: usize,
     defense_cards: usize,
+    direction: Direction,
 }
 
 impl Deal {
-    fn new(dog: Deck, players: Vec<PlayerInGame>, leader: usize) -> Self {
+    fn new(
+        dog: Deck,
+        players: Vec<PlayerInGame>,
+        dealer: usize,
+        leader: usize,
+        direction: Direction,
+    ) -> Self {
         let count = players.len();
+        let dealt = players.iter().map(|player| player.hand().clone()).collect();
         Self {
             dog,
+            dealt,
+            dealer,
             players,
+            direction,
             contract: None,
             taker: None,
             slam_announced: false,
@@ -86,9 +102,20 @@ impl Deal {
     pub fn players(&self) -> &[PlayerInGame] {
         &self.players
     }
+    /// The dog as it was dealt, sorted.
     #[must_use]
     pub const fn dog(&self) -> &Deck {
         &self.dog
+    }
+    /// Every hand as it was dealt, sorted, one per seat.
+    #[must_use]
+    pub fn dealt(&self) -> &[Deck] {
+        &self.dealt
+    }
+    /// Who dealt this deal.
+    #[must_use]
+    pub const fn dealer(&self) -> usize {
+        self.dealer
     }
     #[must_use]
     pub const fn contract(&self) -> Option<Contract> {
@@ -139,7 +166,8 @@ impl Deal {
     }
     /// Whose turn it is to put a card down.
     const fn current_player(&self) -> usize {
-        (self.leader + self.turn.len()) % self.players.len()
+        self.direction
+            .step(self.leader, self.turn.len(), self.players.len())
     }
     fn finished(&self) -> bool {
         self.players.iter().all(PlayerInGame::last_turn)
@@ -159,7 +187,10 @@ impl Deal {
 /// Drives a whole game, deal after deal, without ever talking to a user.
 pub struct Engine {
     mode: Mode,
+    options: Options,
     rng: StdRng,
+    /// The pack between two deals: shuffled once, then only cut, in traditional dealing.
+    deck: Deck,
     deals_left: u64,
     dealer: usize,
     players: Vec<Player>,
@@ -176,11 +207,7 @@ impl Engine {
     #[must_use]
     pub fn new(mode: Mode, deals: u64, seed: u64) -> Self {
         let names = (0..mode.players())
-            .map(|index| {
-                mode.player_name(index)
-                    .unwrap_or("Player")
-                    .to_string()
-            })
+            .map(|index| mode.player_name(index).unwrap_or("Player").to_string())
             .collect();
         Self::with_names(mode, names, deals, seed)
     }
@@ -188,10 +215,27 @@ impl Engine {
     /// A game whose seats are named by the caller.
     #[must_use]
     pub fn with_names(mode: Mode, names: Vec<String>, deals: u64, seed: u64) -> Self {
+        Self::with_options(mode, names, deals, seed, Options::default())
+    }
+
+    /// A game played with the given table rules.
+    #[must_use]
+    pub fn with_options(
+        mode: Mode,
+        names: Vec<String>,
+        deals: u64,
+        seed: u64,
+        options: Options,
+    ) -> Self {
         let players = names.into_iter().map(Player::new).collect();
+        let mut rng = StdRng::seed_from_u64(seed);
+        // RULE: the pack is shuffled once, when the game starts
+        let deck = Deck::shuffled(&mut rng);
         let mut engine = Self {
             mode,
-            rng: StdRng::seed_from_u64(seed),
+            options,
+            rng,
+            deck,
             deals_left: deals,
             dealer: 0,
             players,
@@ -214,6 +258,10 @@ impl Engine {
     #[must_use]
     pub const fn mode(&self) -> Mode {
         self.mode
+    }
+    #[must_use]
+    pub const fn options(&self) -> Options {
+        self.options
     }
     #[must_use]
     pub fn players(&self) -> &[Player] {
@@ -266,7 +314,10 @@ impl Engine {
     // ---- answering -------------------------------------------------------
     /// Hand back the reply to [`Engine::pending`] and let the engine run on.
     pub fn answer(&mut self, answer: Answer) -> Result<(), TarotErrorKind> {
-        let question = self.pending.take().ok_or(TarotErrorKind::UnexpectedAnswer)?;
+        let question = self
+            .pending
+            .take()
+            .ok_or(TarotErrorKind::UnexpectedAnswer)?;
         self.apply(&question, answer)?;
         self.advance()
     }
@@ -275,7 +326,10 @@ impl Engine {
     pub fn random_answer(&mut self, question: &Question) -> Result<Answer, TarotErrorKind> {
         let pick = |rng: &mut StdRng, cards: &[Card]| -> Result<Card, TarotErrorKind> {
             let index = rng.random_range(0..cards.len().max(1));
-            cards.get(index).copied().ok_or(TarotErrorKind::NoCard(index))
+            cards
+                .get(index)
+                .copied()
+                .ok_or(TarotErrorKind::NoCard(index))
         };
         match question {
             Question::Contract { allowed, .. } => {
@@ -299,9 +353,7 @@ impl Engine {
             }
             Question::Call { allowed, .. }
             | Question::Discard { allowed, .. }
-            | Question::Play { allowed, .. } => {
-                pick(&mut self.rng, allowed).map(Answer::Card)
-            }
+            | Question::Play { allowed, .. } => pick(&mut self.rng, allowed).map(Answer::Card),
             Question::TrimHandle { shown, .. } => pick(&mut self.rng, shown).map(Answer::Card),
         }
     }
@@ -315,7 +367,49 @@ impl Engine {
     }
     const fn rotate_dealer(&mut self) {
         // RULE: the deal moves by exactly one seat between two deals
-        self.dealer = (self.dealer + 1) % self.mode.players();
+        self.dealer = self.next(self.dealer);
+    }
+    /// The seat after `seat`, in the direction of play.
+    const fn next(&self, seat: usize) -> usize {
+        self.options.direction.next(seat, self.mode.players())
+    }
+    /// The seat before `seat`, in the direction of play.
+    const fn previous(&self, seat: usize) -> usize {
+        self.options.direction.previous(seat, self.mode.players())
+    }
+
+    /// Put every card back into the pack, without shuffling it.
+    ///
+    /// RULE: the attack's tricks are stacked first, then the defense's,
+    /// then whatever was never dealt. `dog` is given when it was never handed out.
+    fn gather(
+        &mut self,
+        players: &[PlayerInGame],
+        dog: Option<&Deck>,
+    ) -> Result<(), TarotErrorKind> {
+        if self.options.dealing != Dealing::Traditional {
+            return Ok(());
+        }
+        let mut pack = Deck::default();
+        let attack_first = players
+            .iter()
+            .filter(|player| player.is_attack())
+            .chain(players.iter().filter(|player| !player.is_attack()));
+        for player in attack_first {
+            pack.extend(&player.all_cards());
+            pack.extend(player.hand());
+        }
+        if let Some(dog) = dog {
+            pack.extend(dog);
+        }
+        if pack.len() != MAX_CARDS {
+            return Err(TarotErrorKind::InvalidCase(format!(
+                "{} cards gathered instead of {MAX_CARDS}",
+                pack.len()
+            )));
+        }
+        self.deck = pack;
+        Ok(())
     }
 
     fn advance(&mut self) -> Result<(), TarotErrorKind> {
@@ -324,7 +418,7 @@ impl Engine {
                 return Ok(());
             }
             match self.phase {
-                Phase::Dealing => self.start_deal(),
+                Phase::Dealing => self.start_deal()?,
                 Phase::Bidding => self.ask_bid()?,
                 Phase::Calling => self.ask_call()?,
                 Phase::AnnouncingSlam => self.ask_slam()?,
@@ -338,34 +432,69 @@ impl Engine {
         }
     }
 
-    fn start_deal(&mut self) {
+    fn start_deal(&mut self) -> Result<(), TarotErrorKind> {
         if self.deals_left == 0 {
             self.events.push(Event::GameFinished);
             self.phase = Phase::Finished;
-            return;
+            return Ok(());
         }
         self.events.push(Event::DealStarted {
             deals_left: self.deals_left,
             dealer: self.dealer,
         });
-        let mut deck = Deck::shuffled(&mut self.rng);
-        let mut dog = deck.give(self.mode.dog_size());
+        let (mut dog, hands) = match self.options.dealing {
+            Dealing::Random => {
+                self.deck = Deck::shuffled(&mut self.rng);
+                let dog = self.deck.give(self.mode.dog_size());
+                let hands = (0..self.mode.players())
+                    .map(|_| self.deck.give(self.mode.cards_per_player()))
+                    .collect();
+                (dog, hands)
+            }
+            Dealing::Traditional => {
+                // RULE: the previous dealer cuts the pack
+                let cutter = self.previous(self.dealer);
+                let depth = self.rng.random_range(MIN_CUT..=MAX_CARDS - MIN_CUT);
+                self.deck.cut(depth)?;
+                self.events.push(Event::DeckCut { player: cutter });
+                // RULE: the dealer serves the seat after him first, and himself last
+                let first = self.next(self.dealer);
+                let mut pack = self.deck.give_all();
+                deal_three_by_three(
+                    &mut pack,
+                    self.mode,
+                    first,
+                    self.options.direction,
+                    &mut self.rng,
+                )
+            }
+        };
         dog.sort();
-        let mut players = Vec::with_capacity(self.mode.players());
-        for _ in 0..self.mode.players() {
-            let mut player_in_game = PlayerInGame::new(self.mode);
-            player_in_game.extend_hand(&deck.give(self.mode.cards_per_player()));
-            players.push(player_in_game);
-        }
+        let players: Vec<PlayerInGame> = hands
+            .iter()
+            .map(|hand| {
+                let mut player_in_game = PlayerInGame::new(self.mode);
+                player_in_game.extend_hand(hand);
+                player_in_game
+            })
+            .collect();
         // RULE: a hand whose only trump is the petit is dealt again
         if let Some(player) = players.iter().position(PlayerInGame::petit_sec) {
             self.events.push(Event::PetitSec { player });
+            self.gather(&players, Some(&dog))?;
             self.rotate_dealer();
-            return;
+            return Ok(());
         }
-        let leader = (self.dealer + 1) % self.mode.players();
-        self.deal = Some(Deal::new(dog, players, leader));
+        let leader = self.next(self.dealer);
+        self.deal = Some(Deal::new(
+            dog,
+            players,
+            self.dealer,
+            leader,
+            self.options.direction,
+        ));
         self.phase = Phase::Bidding;
+        Ok(())
     }
 
     fn ask_bid(&mut self) -> Result<(), TarotErrorKind> {
@@ -379,7 +508,9 @@ impl Engine {
         }
         if deal.taker.is_none() {
             self.events.push(Event::EveryonePassed);
-            self.deal = None;
+            if let Some(deal) = self.deal.take() {
+                self.gather(&deal.players, Some(&deal.dog))?;
+            }
             self.rotate_dealer();
             self.phase = Phase::Dealing;
             return Ok(());
@@ -450,7 +581,8 @@ impl Engine {
                     .role_holder(Role::Defenser)
                     .ok_or(TarotErrorKind::NoDefenser(0))?;
                 self.deal_mut()?.player_mut(defenser)?.set_discard(&dog);
-                self.events.push(Event::DogGivenToDefense { player: defenser });
+                self.events
+                    .push(Event::DogGivenToDefense { player: defenser });
                 self.start_playing()
             }
             Contract::Petite | Contract::Garde => {
@@ -458,10 +590,8 @@ impl Engine {
                     let deal = self.deal_mut()?;
                     deal.dog_given = true;
                     deal.player_mut(taker)?.extend_hand(&dog);
-                    self.events.push(Event::DogGivenToTaker {
-                        player: taker,
-                        dog,
-                    });
+                    self.events
+                        .push(Event::DogGivenToTaker { player: taker, dog });
                     return Ok(());
                 }
                 let taker_in_game = self.deal_ref()?.player(taker)?;
@@ -555,7 +685,8 @@ impl Engine {
         let team = master_in_game
             .team()
             .ok_or_else(|| TarotErrorKind::NoTeamForPlayer(master.to_string()))?;
-        let slam_running = deal.took_everything(Team::Attack) || deal.took_everything(Team::Defense);
+        let slam_running =
+            deal.took_everything(Team::Attack) || deal.took_everything(Team::Defense);
 
         let turn = std::mem::take(&mut deal.turn);
         let turn_cards = turn.take_cards(deal.fool_kept);
@@ -620,7 +751,12 @@ impl Engine {
                 self.phase = Phase::Discarding;
                 Ok(())
             }
-            (Question::Discard { player, allowed, .. }, Answer::Card(card)) => {
+            (
+                Question::Discard {
+                    player, allowed, ..
+                },
+                Answer::Card(card),
+            ) => {
                 Self::require(allowed, card)?;
                 self.deal_mut()?.player_mut(*player)?.discard_card(card)?;
                 self.events.push(Event::Discarded {
@@ -693,9 +829,9 @@ impl Engine {
             deal.allowed_contracts
                 .retain(|other| other.multiplier() > contract.multiplier());
         }
-        let players = self.mode.players();
+        let next_bidder = self.next(player);
         let deal = self.deal_mut()?;
-        deal.bidder = (deal.bidder + 1) % players;
+        deal.bidder = next_bidder;
         deal.bids_left -= 1;
         self.events.push(Event::Bid { player, contract });
         Ok(())
@@ -840,7 +976,11 @@ impl Engine {
         });
         self.is_consistent()?;
 
-        self.last_deal = self.deal.take();
+        // RULE: the tricks are stacked back into the pack, the dog is already in a discard
+        if let Some(deal) = self.deal.take() {
+            self.gather(&deal.players, None)?;
+            self.last_deal = Some(deal);
+        }
         self.deals_left = self.deals_left.saturating_sub(1);
         self.rotate_dealer();
         self.phase = Phase::Dealing;
@@ -902,15 +1042,55 @@ impl Engine {
     }
 }
 
+/// Cards given to one seat at a time.
+const PACKET: usize = 3;
+
+/// Deal `pack` three by three, starting at `first` and going around in `direction`.
+///
+/// RULE: the dog is made of cards dropped one at a time between two packets,
+/// never the first nor the last card of the pack.
+fn deal_three_by_three<R: Rng + ?Sized>(
+    pack: &mut Deck,
+    mode: Mode,
+    first: usize,
+    direction: Direction,
+    rng: &mut R,
+) -> (Deck, Vec<Deck>) {
+    let players = mode.players();
+    let packets = players * (mode.cards_per_player() / PACKET);
+    // a dog card may fall before any packet but the first one
+    let mut gaps: Vec<usize> = rand::seq::index::sample(rng, packets - 1, mode.dog_size())
+        .into_iter()
+        .map(|gap| gap + 1)
+        .collect();
+    gaps.sort_unstable();
+    let mut dog = Deck::default();
+    let mut hands = vec![Deck::default(); players];
+    let mut seat = first;
+    for packet in 0..packets {
+        if gaps.binary_search(&packet).is_ok() {
+            dog.extend(&pack.give(1));
+        }
+        if let Some(hand) = hands.get_mut(seat) {
+            hand.extend(&pack.give(PACKET));
+        }
+        seat = direction.next(seat, players);
+    }
+    (dog, hands)
+}
+
 #[cfg(test)]
 #[allow(clippy::wildcard_enum_match_arm)]
 mod tests {
-    use super::Engine;
+    use super::{Engine, deal_three_by_three};
     use crate::card::Card;
+    use crate::constants::MAX_CARDS;
     use crate::contract::Contract;
+    use crate::deck::Deck;
     use crate::event::Event;
     use crate::handle::Handle;
     use crate::mode::Mode;
+    use crate::options::{Dealing, Direction, Options};
     use crate::question::{Answer, Question};
     use crate::role::Role;
     use crate::suit::Suit;
@@ -918,11 +1098,29 @@ mod tests {
     use crate::team::Team;
     use crate::trump::Trump;
     use ordered_float::OrderedFloat;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
     use strum::IntoEnumIterator;
 
     /// Play a whole game with random answers, collecting every event.
     fn autoplay(mode: Mode, deals: u64, seed: u64) -> (Engine, Vec<Event>) {
-        let mut engine = Engine::new(mode, deals, seed);
+        autoplay_with(mode, deals, seed, Options::default())
+    }
+
+    /// Every combination of table rules.
+    fn all_options() -> Vec<Options> {
+        let mut all = Vec::new();
+        for direction in [Direction::Clockwise, Direction::CounterClockwise] {
+            for dealing in [Dealing::Traditional, Dealing::Random] {
+                all.push(Options { direction, dealing });
+            }
+        }
+        all
+    }
+
+    fn autoplay_with(mode: Mode, deals: u64, seed: u64, options: Options) -> (Engine, Vec<Event>) {
+        let names = (0..mode.players()).map(|i| format!("P{i}")).collect();
+        let mut engine = Engine::with_options(mode, names, deals, seed, options);
         let mut events = Vec::new();
         let mut guard = 0;
         loop {
@@ -960,6 +1158,220 @@ mod tests {
                 assert_eq!(engine.is_consistent(), Ok(()));
             }
         }
+    }
+
+    #[test]
+    fn every_table_rule_plays_to_the_end_and_adds_up() {
+        for options in all_options() {
+            for mode in Mode::iter() {
+                for seed in 0..5 {
+                    let (engine, events) = autoplay_with(mode, 4, seed, options);
+                    assert!(engine.is_finished(), "{options:?} {mode:?} never ended");
+                    assert_eq!(engine.is_consistent(), Ok(()), "{options:?} {mode:?}");
+                    let scored = events
+                        .iter()
+                        .filter(|event| matches!(event, Event::DealScored { .. }))
+                        .count();
+                    assert_eq!(scored, 4, "{options:?} {mode:?}");
+                }
+            }
+        }
+    }
+
+    // ---- direction of play ---------------------------------------------
+
+    /// The dealer of each deal and who bid first after him.
+    fn dealers_and_first_bidders(events: &[Event]) -> Vec<(usize, usize)> {
+        let mut out = Vec::new();
+        let mut dealer = None;
+        for event in events {
+            match event {
+                Event::DealStarted { dealer: d, .. } => dealer = Some(*d),
+                Event::Bid { player, .. } => {
+                    if let Some(d) = dealer.take() {
+                        out.push((d, *player));
+                    }
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn the_table_turns_the_way_it_is_told() {
+        for direction in [Direction::Clockwise, Direction::CounterClockwise] {
+            let options = Options {
+                direction,
+                ..Options::default()
+            };
+            let (_, events) = autoplay_with(Mode::Four, 4, 11, options);
+            let pairs = dealers_and_first_bidders(&events);
+            assert_ne!(pairs.len(), 0);
+            for (dealer, first) in &pairs {
+                assert_eq!(*first, direction.next(*dealer, 4), "{direction}");
+            }
+            // the deal itself moves in the same direction
+            for window in pairs.windows(2) {
+                if let [(before, _), (after, _)] = window {
+                    assert_eq!(*after, direction.next(*before, 4), "{direction}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cards_go_round_the_table_in_the_direction_of_play() {
+        for direction in [Direction::Clockwise, Direction::CounterClockwise] {
+            let options = Options {
+                direction,
+                ..Options::default()
+            };
+            let (_, events) = autoplay_with(Mode::Five, 2, 4, options);
+            let mut previous: Option<usize> = None;
+            let mut in_turn = 0;
+            for event in &events {
+                match event {
+                    Event::CardPlayed { player, .. } => {
+                        if in_turn > 0
+                            && let Some(before) = previous
+                        {
+                            assert_eq!(*player, direction.next(before, 5), "{direction}");
+                        }
+                        previous = Some(*player);
+                        in_turn += 1;
+                    }
+                    Event::TurnWon { .. } => in_turn = 0,
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // ---- dealing --------------------------------------------------------
+
+    #[test]
+    fn the_previous_dealer_cuts_before_every_traditional_deal() {
+        let (_, events) = autoplay_with(Mode::Four, 5, 2, Options::default());
+        let mut dealer = None;
+        let mut cuts = 0;
+        for event in &events {
+            match event {
+                Event::DealStarted { dealer: d, .. } => dealer = Some(*d),
+                Event::DeckCut { player } => {
+                    cuts += 1;
+                    let dealer = dealer.expect("a cut follows a deal start");
+                    assert_eq!(*player, Direction::Clockwise.previous(dealer, 4));
+                }
+                _ => {}
+            }
+        }
+        let started = events
+            .iter()
+            .filter(|event| matches!(event, Event::DealStarted { .. }))
+            .count();
+        assert_eq!(cuts, started);
+    }
+
+    #[test]
+    fn a_random_deal_never_cuts() {
+        let options = Options {
+            dealing: Dealing::Random,
+            ..Options::default()
+        };
+        let (_, events) = autoplay_with(Mode::Four, 3, 2, options);
+        assert!(
+            !events
+                .iter()
+                .any(|event| matches!(event, Event::DeckCut { .. }))
+        );
+    }
+
+    #[test]
+    fn three_by_three_serves_packets_in_order_and_keeps_the_dog_inside() {
+        let mut rng = StdRng::seed_from_u64(7);
+        for mode in Mode::iter() {
+            for direction in [Direction::Clockwise, Direction::CounterClockwise] {
+                let players = mode.players();
+                let first = 1;
+                let full = Deck::full();
+                let mut pack = full.clone();
+                let (dog, hands) = deal_three_by_three(&mut pack, mode, first, direction, &mut rng);
+                assert!(pack.is_empty(), "every card is dealt");
+                assert_eq!(dog.len(), mode.dog_size());
+                assert_eq!(hands.len(), players);
+                for hand in &hands {
+                    assert_eq!(hand.len(), mode.cards_per_player());
+                    // each hand is made of packets of three consecutive cards of the pack
+                    for packet in hand.chunks(3) {
+                        let at =
+                            |card: &Card| full.iter().position(|c| c == card).expect("in pack");
+                        let positions: Vec<usize> = packet.iter().map(at).collect();
+                        assert_eq!(positions.get(1).copied(), positions.first().map(|p| p + 1));
+                        assert_eq!(positions.get(2).copied(), positions.first().map(|p| p + 2));
+                    }
+                }
+                // the first packet goes to `first`, the last one to the seat before it
+                assert_eq!(hands.get(first).and_then(|h| h.first()), full.first());
+                let last_seat = direction.previous(first, players);
+                assert_eq!(
+                    hands.get(last_seat).and_then(|h| h.last()),
+                    full.get(MAX_CARDS - 1)
+                );
+                // RULE: the dog never holds the first nor the last card
+                assert!(!dog.has(full.first().expect("full")));
+                assert!(!dog.has(full.get(MAX_CARDS - 1).expect("full")));
+                // the second packet goes to the next seat in the direction of play,
+                // right after the first packet or after one dog card
+                let second = direction.next(first, players);
+                let start = hands
+                    .get(second)
+                    .and_then(|h| h.first())
+                    .and_then(|c| full.iter().position(|x| x == c));
+                assert!(
+                    matches!(start, Some(3 | 4)),
+                    "{mode:?} {direction}: {start:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_dealt_hands_are_kept_until_the_deal_is_scored() {
+        let mut engine = Engine::new(Mode::Four, 1, 9);
+        let dealt: Vec<Deck> = engine.deal().expect("a deal").dealt().to_vec();
+        assert_eq!(dealt.len(), 4);
+        let mut all = Deck::default();
+        for hand in &dealt {
+            assert_eq!(hand.len(), Mode::Four.cards_per_player());
+            all.extend(hand);
+        }
+        all.extend(engine.deal().expect("a deal").dog());
+        all.sort();
+        assert!(
+            all.is_chelem(),
+            "the dealt hands and the dog make the whole pack"
+        );
+        while let Some(question) = engine.pending().cloned() {
+            let answer = engine.random_answer(&question).expect("legal");
+            engine.answer(answer).expect("accepted");
+        }
+        let last = engine.last_deal().expect("the scored deal is kept");
+        assert_eq!(last.dealt(), dealt.as_slice());
+        assert!(last.players().iter().all(|p| p.hand().is_empty()));
+    }
+
+    #[test]
+    fn a_traditional_pack_is_never_reshuffled_between_deals() {
+        // Two games with the same seed but different answers get the same first deal,
+        // then diverge only through play: the cards stay in trick order.
+        let names: Vec<String> = (0..4).map(|i| format!("P{i}")).collect();
+        let engine = Engine::with_options(Mode::Four, names, 2, 5, Options::default());
+        let deal = engine.deal().expect("a deal is running");
+        let dealt: usize =
+            deal.players().iter().map(|p| p.hand().len()).sum::<usize>() + deal.dog().len();
+        assert_eq!(dealt, MAX_CARDS);
+        assert!(engine.deck.is_empty(), "the whole pack is on the table");
     }
 
     #[test]
@@ -1379,7 +1791,10 @@ mod tests {
             events.append(&mut engine.take_events());
             for event in &events {
                 let Event::DealScored {
-                    taker, ally, points, ..
+                    taker,
+                    ally,
+                    points,
+                    ..
                 } = event
                 else {
                     continue;
@@ -1403,14 +1818,14 @@ mod tests {
                 match &question {
                     // passing is always possible, so an empty list is fine here
                     Question::Contract { .. } | Question::Slam { .. } => {}
-                    Question::Handle { allowed, .. } => assert!(!allowed.is_empty()),
+                    Question::Handle { allowed, .. } => assert_ne!(allowed.len(), 0),
                     Question::Call { allowed, .. }
                     | Question::Discard { allowed, .. }
-                    | Question::Play { allowed, .. } => assert!(!allowed.is_empty()),
+                    | Question::Play { allowed, .. } => assert_ne!(allowed.len(), 0),
                     Question::TrimHandle {
                         shown, to_remove, ..
                     } => {
-                        assert!(!shown.is_empty());
+                        assert_ne!(shown.len(), 0);
                         assert!(*to_remove > 0);
                     }
                 }
@@ -1537,7 +1952,11 @@ mod tests {
                     for event in engine.take_events() {
                         match event {
                             Event::TurnWon { player, .. } => winners.push(player),
-                            Event::SlamResult { realized: true, bonus, .. } => {
+                            Event::SlamResult {
+                                realized: true,
+                                bonus,
+                                ..
+                            } => {
                                 slams += 1;
                                 let by_attack =
                                     winners.iter().all(|player| attack.contains(player));

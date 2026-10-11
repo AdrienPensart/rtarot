@@ -6,8 +6,8 @@ use ordered_float::OrderedFloat;
 use rand::RngExt;
 use rtarot_core::bot;
 use rtarot_core::{
-    Answer, Card, Contract, Deal, Deck, Engine, Event, Mode, PlayerInGame, Points, Question,
-    TarotErrorKind, Team,
+    Answer, Card, Contract, Deal, Dealing, Deck, Direction, Engine, Event, Mode, Options,
+    PlayerInGame, Points, Question, TarotErrorKind, Team,
 };
 use std::time::{Duration, Instant};
 
@@ -16,6 +16,10 @@ use std::time::{Duration, Instant};
 pub struct Settings {
     pub mode: Mode,
     pub deals: u64,
+    /// Which way the table turns.
+    pub direction: Direction,
+    /// Whether the pack is cut and dealt three by three, or shuffled every deal.
+    pub dealing: Dealing,
     /// The seat played by the human.
     pub seat: usize,
     /// Bots always pass, so the human plays the attack.
@@ -44,6 +48,8 @@ impl Default for Settings {
         Self {
             mode: Mode::Four,
             deals: 10,
+            direction: Direction::default(),
+            dealing: Dealing::default(),
             seat: Self::south(Mode::Four),
             attack: false,
             no_slam: false,
@@ -102,6 +108,9 @@ pub struct Game {
     pub log: Vec<Line>,
     /// The taker's partner, once the called king has been seen on the table.
     pub ally: Option<usize>,
+    /// Whether the table has seen that the called king is the taker's own:
+    /// it was in the dog, or the taker played it.
+    alone_seen: bool,
     /// What each seat said during the auction: nothing yet, a pass, or a contract.
     pub bids: Vec<Bid>,
     pub trick: Trick,
@@ -133,19 +142,35 @@ pub struct Game {
     last_trick_until: Instant,
     /// Whether the window replaying the deal trick by trick is open.
     pub show_history: bool,
+    /// Whether the window showing every hand as it was dealt is open.
+    pub show_dealt: bool,
     next_bot_at: Instant,
 }
 
 impl Game {
     pub fn new(settings: &Settings) -> Self {
         let seed = rand::rng().random();
-        let engine = Engine::new(settings.mode, settings.deals, seed);
+        let names = (0..settings.mode.players())
+            .map(|index| {
+                settings
+                    .mode
+                    .player_name(index)
+                    .unwrap_or("Player")
+                    .to_string()
+            })
+            .collect();
+        let options = Options {
+            direction: settings.direction,
+            dealing: settings.dealing,
+        };
+        let engine = Engine::with_options(settings.mode, names, settings.deals, seed, options);
         let mut game = Self {
             settings: settings.clone(),
             engine,
             log: Vec::new(),
             trick: Trick::default(),
             ally: None,
+            alone_seen: false,
             bids: vec![Bid::Silent; settings.mode.players()],
             last_trick: None,
             tricks: Vec::new(),
@@ -162,6 +187,7 @@ impl Game {
             right_to_left: false,
             last_trick_until: Instant::now(),
             show_history: false,
+            show_dealt: false,
             next_bot_at: Instant::now(),
         };
         game.drain_events();
@@ -193,9 +219,31 @@ impl Game {
     }
 
     /// Whether everybody knows who plays with whom: at once with three or four
-    /// players, once the called king has been played with five.
+    /// players, once the called king has been seen with five.
     pub fn sides_known(&self) -> bool {
-        self.engine.mode() != Mode::Five || self.ally.is_some()
+        self.engine.mode() != Mode::Five || self.ally.is_some() || self.alone()
+    }
+
+    /// Whether the taker is known to play alone, having called a king of their own.
+    ///
+    /// The table knows once the king shows up in the dog or is played by the taker.
+    /// The human knows at once when they are the taker and hold it.
+    pub fn alone(&self) -> bool {
+        if self.alone_seen {
+            return true;
+        }
+        let Some(taker) = self.taker() else {
+            return false;
+        };
+        if taker != self.human() {
+            return false;
+        }
+        let Some(callee) = self.callee() else {
+            return false;
+        };
+        self.deal()
+            .and_then(|deal| deal.player(taker).ok())
+            .is_some_and(|player| player.has(&callee))
     }
 
     /// Card points taken so far by a side.
@@ -245,6 +293,7 @@ impl Game {
     pub fn next_deal(&mut self) {
         self.summary = None;
         self.show_history = false;
+        self.show_dealt = false;
         self.paused = false;
         let deferred = std::mem::take(&mut self.deferred);
         self.process(deferred);
@@ -306,6 +355,7 @@ impl Game {
         let mut turn_won = false;
         let mut events = events.into_iter();
         while let Some(event) = events.next() {
+            let alone_before = self.alone_seen;
             match &event {
                 Event::DealStarted { .. } => {
                     self.trick = Trick::default();
@@ -315,15 +365,28 @@ impl Game {
                     self.discard_pick.clear();
                     self.slam_intent = false;
                     self.ally = None;
+                    self.alone_seen = false;
                     self.bids.iter_mut().for_each(|bid| *bid = Bid::Silent);
                 }
-                Event::DogGivenToTaker { dog, .. } => self.dog = Some(dog.clone()),
+                Event::DogGivenToTaker { dog, .. } => {
+                    self.dog = Some(dog.clone());
+                    // RULE: a called king found in the dog leaves the taker alone
+                    if let Some(callee) = self.callee()
+                        && dog.has(&callee)
+                    {
+                        self.alone_seen = true;
+                    }
+                }
                 Event::CardPlayed { player, card } => {
                     self.dog = None;
                     self.trick.cards.push((*player, *card));
                     // The partner stays secret until the called king is put down.
-                    if Some(*card) == self.callee() && Some(*player) != self.taker() {
-                        self.ally = Some(*player);
+                    if Some(*card) == self.callee() {
+                        if Some(*player) == self.taker() {
+                            self.alone_seen = true;
+                        } else {
+                            self.ally = Some(*player);
+                        }
                     }
                 }
                 Event::TurnWon { player, .. } => {
@@ -345,7 +408,8 @@ impl Game {
                         *bid = contract.map_or(Bid::Pass, Bid::Contract);
                     }
                 }
-                Event::PetitSec { .. }
+                Event::DeckCut { .. }
+                | Event::PetitSec { .. }
                 | Event::EveryonePassed
                 | Event::KingCalled { .. }
                 | Event::SlamAnnounced { .. }
@@ -371,6 +435,16 @@ impl Game {
             };
             self.log
                 .push(tag(&log::describe(&self.engine, &event), &marks));
+            if self.alone_seen
+                && !alone_before
+                && let Some(taker) = self.taker()
+            {
+                let line = format!(
+                    "{} called a king of their own and plays alone",
+                    self.name(taker)
+                );
+                self.log.push(tag(&line, &marks));
+            }
             if matches!(event, Event::DealScored { .. }) {
                 self.deferred.extend(events.by_ref());
                 break;
@@ -553,6 +627,72 @@ mod tests {
             assert!(game.log.iter().any(|line| text(line).contains("Game over")));
             assert_eq!(game.engine.is_consistent(), Ok(()));
         }
+    }
+
+    /// A taker who calls a king they hold is shown alone once that king is played.
+    #[test]
+    fn a_taker_calling_their_own_king_is_labelled_alone() {
+        let settings = Settings {
+            mode: Mode::Five,
+            seat: Settings::south(Mode::Five),
+            deals: 1,
+            bot_delay: 0.0,
+            trick_delay: 0.0,
+            ..Settings::default()
+        };
+        // Deal until the taker holds a king, whoever the taker is.
+        let (mut game, king) = loop {
+            let mut game = Game::new(&settings);
+            let found = loop {
+                let Some(question) = game.engine.pending().cloned() else {
+                    break None;
+                };
+                if let Question::Call { player, allowed } = &question {
+                    let hand = game
+                        .engine
+                        .deal()
+                        .and_then(|deal| deal.player(*player).ok())
+                        .map(|p| p.hand().clone())
+                        .expect("the taker has a hand");
+                    break allowed.iter().find(|king| hand.has(king)).copied();
+                }
+                let answer = game.engine.random_answer(&question).expect("legal");
+                game.answer(answer);
+            };
+            if let Some(king) = found {
+                break (game, king);
+            }
+        };
+        assert!(!game.sides_known(), "nothing is known before the call");
+        game.answer(rtarot_core::Answer::Card(king));
+        let taker = game.taker().expect("a taker");
+        let human_knows = taker == game.human();
+        assert_eq!(
+            game.alone(),
+            human_knows,
+            "only the human taker knows at once"
+        );
+        // Play on until the taker puts the king down.
+        let mut seen = false;
+        while let Some(question) = game.engine.pending().cloned() {
+            if game.alone_seen {
+                seen = true;
+                break;
+            }
+            let answer = game.engine.random_answer(&question).expect("legal");
+            game.answer(answer);
+            assert_eq!(game.error, None);
+        }
+        assert!(seen, "the table sees the self-call once the king is played");
+        assert!(game.alone());
+        assert!(game.sides_known());
+        assert_eq!(game.ally, None);
+        let text = |line: &Vec<Span>| line.iter().map(|s| s.text.as_str()).collect::<String>();
+        assert!(
+            game.log
+                .iter()
+                .any(|line| text(line).contains("plays alone"))
+        );
     }
 
     #[test]

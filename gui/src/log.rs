@@ -22,6 +22,7 @@ pub fn describe(engine: &Engine, event: &Event) -> String {
         Event::DealStarted { deals_left, dealer } => {
             format!("— New deal, {deals_left} left, {} deals —", name(*dealer))
         }
+        Event::DeckCut { player } => format!("{} cuts the deck", name(*player)),
         Event::PetitSec { player } => {
             format!("{} has a petit sec, the deal is cancelled", name(*player))
         }

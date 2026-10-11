@@ -13,6 +13,10 @@ pub enum Event {
         deals_left: u64,
         dealer: usize,
     },
+    /// The pack was cut before being dealt, by the previous dealer.
+    DeckCut {
+        player: usize,
+    },
     PetitSec {
         player: usize,
     },

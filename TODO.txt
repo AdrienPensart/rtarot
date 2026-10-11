@@ -7,9 +7,3 @@ Todo :
     - random reunion
 - test games : handles, chelem, etc
 - duplicate mode
-
-- on doit voir le dernier pli à la fin
-- ne pas redistribuer avant de cliquer sur "next deal"
-- exposer les plis remportés
-- à la fin d'une garde sans ou garde contre, montrer le chien
-- à 5, une fois que l'allié est découvert, rassembler les scores des deux équipes

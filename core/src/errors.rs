@@ -8,6 +8,8 @@ pub enum TarotErrorKind {
     PetitSec,
     #[error("Card {0} is not available")]
     InvalidCard(Card),
+    #[error("A cut at {0} cards does not leave enough cards on both sides")]
+    InvalidCut(usize),
     #[error("Contract {0} is not available")]
     InvalidContract(String),
     #[error("Handle {0} is not available")]

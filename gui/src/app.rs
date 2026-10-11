@@ -3,7 +3,7 @@
 use crate::game::{Game, Settings};
 use crate::textures::Textures;
 use crate::view::{self, Outcome};
-use rtarot_core::Mode;
+use rtarot_core::{Dealing, Direction, Mode};
 use strum::IntoEnumIterator;
 
 enum Screen {
@@ -55,6 +55,30 @@ impl TarotApp {
 
                         ui.label("Deals");
                         ui.add(egui::Slider::new(&mut settings.deals, 1..=30));
+                        ui.end_row();
+
+                        ui.label("Table turns");
+                        ui.horizontal(|ui| {
+                            for direction in Direction::iter() {
+                                ui.selectable_value(
+                                    &mut settings.direction,
+                                    direction,
+                                    direction.to_string(),
+                                );
+                            }
+                        });
+                        ui.end_row();
+
+                        ui.label("Cards are");
+                        ui.horizontal(|ui| {
+                            for dealing in Dealing::iter() {
+                                ui.selectable_value(
+                                    &mut settings.dealing,
+                                    dealing,
+                                    dealing.to_string(),
+                                );
+                            }
+                        });
                         ui.end_row();
 
                         settings.seat = settings.seat.min(settings.mode.players() - 1);

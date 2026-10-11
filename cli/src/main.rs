@@ -5,7 +5,9 @@
 
 use clap::Parser;
 use rand::RngExt;
-use rtarot_core::{Answer, Engine, Mode, Question, TarotErrorKind, bot};
+use rtarot_core::{
+    Answer, Dealing, Direction, Engine, Mode, Options, Question, TarotErrorKind, bot,
+};
 use std::error;
 use std::num::NonZeroUsize;
 use std::str::FromStr;
@@ -57,6 +59,14 @@ struct Opts {
     #[arg(long = "no-slam")]
     no_slam: bool,
 
+    /// The table turns counter-clockwise, the way a real tarot table does
+    #[arg(long = "counter-clockwise")]
+    counter_clockwise: bool,
+
+    /// Shuffle before every deal instead of cutting and dealing three by three
+    #[arg(long = "random-deal")]
+    random_deal: bool,
+
     /// Concurrency in test mode, default is number of cpu on this machine
     #[arg(short, default_value_t = thread::available_parallelism().unwrap_or(NonZeroUsize::MIN))]
     concurrency: NonZeroUsize,
@@ -66,6 +76,22 @@ impl Opts {
     /// Whether the engine, and not a human, answers for that seat.
     fn is_bot(&self, name: &str) -> bool {
         self.test || self.random || name != HUMAN_SEAT
+    }
+
+    /// The table rules asked for on the command line.
+    const fn options(&self) -> Options {
+        Options {
+            direction: if self.counter_clockwise {
+                Direction::CounterClockwise
+            } else {
+                Direction::Clockwise
+            },
+            dealing: if self.random_deal {
+                Dealing::Random
+            } else {
+                Dealing::Traditional
+            },
+        }
     }
 }
 
@@ -107,8 +133,11 @@ const fn single_choice(question: &Question) -> Option<&[rtarot_core::Card]> {
     }
 }
 
-fn play(mode: Mode, opts: &Opts, seed: u64) -> Result<(), TarotErrorKind> {
-    let mut engine = Engine::new(mode, opts.deals, seed);
+fn play(mode: Mode, opts: &Opts, seed: u64, options: Options) -> Result<(), TarotErrorKind> {
+    let names = (0..mode.players())
+        .map(|index| mode.player_name(index).unwrap_or("Player").to_string())
+        .collect();
+    let mut engine = Engine::with_options(mode, names, opts.deals, seed, options);
     loop {
         let events = engine.take_events();
         if !opts.quiet {
@@ -133,8 +162,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let opts = opts.clone();
             children.push(thread::spawn(move || {
                 let mut rng = rand::rng();
+                // Every table rule gets hunted, not only the ones asked for.
+                let mut rules = Direction::iter()
+                    .flat_map(|direction| {
+                        Dealing::iter().map(move |dealing| Options { direction, dealing })
+                    })
+                    .cycle();
                 for mode in Mode::iter().cycle() {
-                    if let Err(e) = play(mode, &opts, rng.random()) {
+                    let options = rules.next().unwrap_or_default();
+                    if let Err(e) = play(mode, &opts, rng.random(), options) {
                         eprintln!("{:?} : {e}", thread::current().id());
                     }
                 }
@@ -147,7 +183,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     }
     let mode = Mode::from_str(&opts.players)?;
     let seed = rand::rng().random();
-    if let Err(e) = play(mode, &opts, seed) {
+    if let Err(e) = play(mode, &opts, seed, opts.options()) {
         eprintln!("{e}");
     }
     Ok(())

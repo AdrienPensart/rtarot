@@ -8,7 +8,7 @@ use std::fmt;
 use strum::IntoEnumIterator;
 
 use crate::card::Card;
-use crate::constants::MAX_CARDS;
+use crate::constants::{MAX_CARDS, MIN_CUT};
 use crate::errors::TarotErrorKind;
 use crate::points::Points;
 use crate::suit::Suit;
@@ -40,6 +40,16 @@ impl Deck {
         let mut deck = Self::full();
         deck.0.shuffle(rng);
         deck
+    }
+    /// Lift the top `depth` cards and put them under the rest.
+    ///
+    /// RULE: a cut leaves at least three cards on each side.
+    pub fn cut(&mut self, depth: usize) -> Result<(), TarotErrorKind> {
+        if depth < MIN_CUT || depth + MIN_CUT > self.len() {
+            return Err(TarotErrorKind::InvalidCut(depth));
+        }
+        self.0.rotate_left(depth);
+        Ok(())
     }
     #[must_use]
     pub fn trumps_and_colors(&self) -> (Vec<Card>, Vec<Card>) {
@@ -217,6 +227,26 @@ mod tests {
         assert_eq!(deck.len(), MAX_CARDS);
         assert_eq!(deck.points(), MAX_POINTS);
         assert!(deck.is_chelem());
+    }
+
+    #[test]
+    fn a_cut_puts_the_top_under_without_losing_a_card() {
+        let full = Deck::full();
+        let mut cut = full.clone();
+        cut.cut(10).expect("ten cards is a fair cut");
+        assert_eq!(cut.len(), MAX_CARDS);
+        assert_eq!(cut.first(), full.get(10));
+        assert_eq!(cut.get(MAX_CARDS - 10), full.first());
+        assert!(cut.is_chelem());
+    }
+
+    #[test]
+    fn a_cut_must_leave_three_cards_on_each_side() {
+        let mut deck = Deck::full();
+        assert!(deck.cut(2).is_err());
+        assert!(deck.cut(MAX_CARDS - 2).is_err());
+        assert!(deck.cut(3).is_ok());
+        assert!(deck.cut(MAX_CARDS - 3).is_ok());
     }
 
     #[test]

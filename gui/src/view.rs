@@ -114,6 +114,17 @@ pub fn show(game: &mut Game, ui: &mut Ui, textures: &Textures) -> Outcome {
         game.show_history = open;
     }
 
+    // The hands as dealt are a secret until the deal is over.
+    if game.show_dealt && game.paused {
+        let mut open = true;
+        egui::Window::new("The deal, as dealt")
+            .open(&mut open)
+            .resizable(false)
+            .default_pos(ctx.content_rect().left_top() + vec2(20.0, 60.0))
+            .show(&ctx, |ui| dealt(game, ui, textures));
+        game.show_dealt = open;
+    }
+
     if game.show_tricks {
         let mut open = true;
         egui::Window::new("Tricks won")
@@ -170,6 +181,8 @@ fn top_bar(game: &Game, ui: &mut Ui) {
                 if let Some(ally) = game.ally {
                     ui.label("with");
                     ui.colored_label(ALLY, game.name(ally));
+                } else if game.alone() {
+                    ui.colored_label(TAKER, "alone");
                 }
             }
             (Some(_) | None, None) | (None, Some(_)) => {
@@ -434,6 +447,9 @@ fn seat_badge(game: &Game, painter: &egui::Painter, position: Pos2, seat: usize)
             if let Some(Card::Normal(called)) = game.callee() {
                 status.push(Piece::Text(format!("calls {}", called.value().symbol())));
                 status.push(Piece::Suit(*called.suit()));
+            }
+            if game.alone() {
+                status.push(Piece::Text("alone".to_string()));
             }
         }
         Some(Role::Ally) if sides_known => status.push(Piece::Text("Ally".to_string())),
@@ -711,7 +727,10 @@ fn deal_over(game: &mut Game, ui: &mut Ui, textures: &Textures) {
                 next = true;
             }
             ui.add_space(4.0);
-            ui.toggle_value(&mut game.show_history, "Review the tricks");
+            ui.horizontal(|ui| {
+                ui.toggle_value(&mut game.show_history, "Review the tricks");
+                ui.toggle_value(&mut game.show_dealt, "Initial hands");
+            });
         });
         // A dog nobody saw is turned over once the deal is scored.
         if let Some(deal) = game.deal()
@@ -779,6 +798,45 @@ fn trick_entry(game: &Game, ui: &mut Ui, title: &str, trick: &Trick, textures: &
         }
     });
     ui.add_space(6.0);
+}
+
+/// Every hand as it was dealt, then the dog, for the deal just scored.
+fn dealt(game: &Game, ui: &mut Ui, textures: &Textures) {
+    ui.set_min_width(640.0);
+    let Some(deal) = game.deal() else {
+        ui.label("No deal to show");
+        return;
+    };
+    let dealer = deal.dealer();
+    for (seat, hand) in deal.dealt().iter().enumerate() {
+        ui.horizontal(|ui| {
+            ui.colored_label(name_color(game, seat), game.name(seat));
+            if let Ok(player) = deal.player(seat)
+                && let Some(role) = player.role()
+            {
+                ui.label(format!("({role})"));
+            }
+            ui.label(format!(
+                "{} trumps, {} pts",
+                hand.count_trumps(),
+                hand.points()
+            ));
+        });
+        card_row(
+            ui,
+            hand,
+            None,
+            SMALL_CARD,
+            &format!("dealt{seat}"),
+            textures,
+        );
+        ui.add_space(4.0);
+    }
+    ui.horizontal(|ui| {
+        ui.label("The dog");
+        ui.label(format!("dealt by {}", game.name(dealer)));
+    });
+    card_row(ui, deal.dog(), None, SMALL_CARD, "dealt_dog", textures);
 }
 
 /// Every card won so far, player by player.
