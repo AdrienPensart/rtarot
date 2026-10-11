@@ -126,6 +126,9 @@ pub struct Game {
     pub show_last: bool,
     /// Whether the table talk panel is shown.
     pub show_log: bool,
+    /// Whether the hand is laid out from the highest card on the left down to the
+    /// lowest on the right. Off for every new game: the hand reads left to right.
+    pub right_to_left: bool,
     /// Until when the last trick stays on the table.
     last_trick_until: Instant,
     /// Whether the window replaying the deal trick by trick is open.
@@ -156,6 +159,7 @@ impl Game {
             show_tricks: false,
             show_last: false,
             show_log: false,
+            right_to_left: false,
             last_trick_until: Instant::now(),
             show_history: false,
             next_bot_at: Instant::now(),

@@ -42,6 +42,7 @@ pub fn show(game: &mut Game, ui: &mut Ui, textures: &Textures) -> Outcome {
                 ui.toggle_value(&mut game.show_log, "Log");
                 ui.toggle_value(&mut game.show_tricks, "Tricks won");
                 ui.toggle_value(&mut game.show_last, "Last trick");
+                ui.toggle_value(&mut game.right_to_left, "Sort right to left");
                 ui.checkbox(&mut game.settings.auto, "Autoplay forced cards");
                 ui.add(
                     egui::Slider::new(&mut game.settings.bot_delay, 0.0..=3.0)
@@ -636,13 +637,15 @@ fn hand_panel(game: &mut Game, ui: &mut Ui, textures: &Textures) -> Option<Answe
         .and_then(|deal| deal.player(human).ok())
         .map(|player| player.hand().clone())
         .unwrap_or_default();
-    let mut hand = Deck::new(
-        hand.iter()
-            .filter(|card| !game.discard_pick.contains(card))
-            .copied()
-            .collect(),
-    );
+    let mut hand: Vec<Card> = hand
+        .iter()
+        .filter(|card| !game.discard_pick.contains(card))
+        .copied()
+        .collect();
     hand.sort();
+    if game.right_to_left {
+        hand.reverse();
+    }
     ui.add_space(6.0);
     if let Some(card) = card_row(ui, &hand, allowed, HAND_CARD, "hand", textures) {
         if picking {
